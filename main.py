@@ -93,220 +93,292 @@ def get_academic_year(date:dt):
 
 if __name__ == "__main__":
     modules = {"COMP201": None}
-    MODULEDBID = NotionURLToID(getenv("moduleurl"))
-    ASSIGNMENTDBID = NotionURLToID(getenv("assignmenturl"))
-    ASSESSMENTDBID = NotionURLToID(getenv("assesmenturl"))
+    print("Enter Modules: ")
+    print("Enter X when done.")
+    module = None
+    while module != "X":
+        module = input().upper()
+        try:
+            int(module)
+            module = "COMP" + module
+        except:
+            pass
+        modules[module] = None
+    # print("---")
     for moduleCode in modules:
         # Setting Up the Module Page
-
+        print("---" + moduleCode + "---")
         acaYear = get_academic_year(dt.now())
         url = f"https://tulip.liv.ac.uk/mods/student/cm_{moduleCode}_{acaYear}.htm"
         res = request("GET", url)
-        soup = BeautifulSoup(res.content, 'html.parser')
-        tables = soup.find_all('table', align='center')
-        
-        for table in tables:
-            rows = table.find_all('tr', valign='Top')
+        if res.status_code == 200:
+
+            soup = BeautifulSoup(res.content, 'html.parser')
+            tables = soup.find_all('table', align='center')
             
+            for table in tables:
+                rows = table.find_all('tr', valign='Top')
+                
+                for row in rows:
+                    headers = row.find_all('td', class_='ddheader')
+                    cells = row.find_all('td', class_='dddefault')
+
+                    if headers and cells and headers[0].get_text(strip=True) in ["1.", "6.", "8.","9.","14.", "15.", "16."] :
+                        headerNo = headers[0].get_text(strip=True)
+                        
+                        if headerNo == "1.": # Name
+                            title = cells[0].get_text(strip=True)
+                        
+                        elif headerNo == "6.": # Semester
+                            semester = cells[0].get_text(strip=True)
+                        
+                        elif headerNo == "8.": # Credits
+                            creds = cells[0].get_text(strip=True)
+
+                        elif headerNo == "9.": # Teacher
+                            teacher = cells[0].get_text().strip().split("\n")
+                            teacherEmail = teacher[2].strip()
+                            teacher = teacher[0].strip()
+
+                        elif headerNo == "14.": # Study Times
+                            studyTimes = {
+                                "Study Hours": {},
+                                "Private Study": None,
+                                "Total Hours": None
+                            }
+                            studyTimes["Study Hours"]["Lectures"] = cells[0].get_text(strip=True)
+                            studyTimes["Study Hours"]["Seminars"] = cells[1].get_text(strip=True)
+                            studyTimes["Study Hours"]["Tutorials"] = cells[2].get_text(strip=True)
+                            studyTimes["Study Hours"]["Lab Practicals"] = cells[3].get_text(strip=True)
+                            studyTimes["Study Hours"]["Fieldwork Placement"] = cells[4].get_text(strip=True)
+                            studyTimes["Study Hours"]["Other"] = cells[5].get_text(strip=True)
+                            studyTimes["Study Hours"]["Total"] = cells[6].get_text(strip=True)
+
+                        elif headerNo == "15.":
+                            studyTimes["Private Study"] = cells[1].get_text(strip=True)
+
+                        elif headerNo == "16.":
+                            studyTimes["Total Hours"] = cells[1].get_text(strip=True)
+
+            # Assessment     
+            table = soup.find('td', string='Assessment').find_parent('table')
+            assessments = []
+            rows = table.find_all('tr')[5:-1]  # Exclude header row
+            for i in range(0,len(rows),2):
+                row = rows[i]
+                cells = row.find_all('td')
+                txt = cells[4].text.strip()
+                assessments.append({
+                    "Assessment": txt[1:txt.find(")")],
+                    "Type": cells[1].text.strip(),
+                    "Weighting": int(cells[2].text.strip())
+                })
+            
+            # Aims
+            table = soup.find('td', string='Aims').find_parent('table')
+            aims = table.find_all('tr')[2].contents[3].get_text(strip=True)
+
+            # Learning Objectives
+            table = soup.find('td', string='Learning Outcomes').find_parent('table')
+            los = {}
+            rows = table.find_all('tr')[2:]  # Exclude header row
             for row in rows:
-                headers = row.find_all('td', class_='ddheader')
-                cells = row.find_all('td', class_='dddefault')
+                cells = row.find_all('td')
+                txt = cells[1].text.strip()
+                outerBracket = txt.find(")")
+                los[txt[1:outerBracket]] = txt[outerBracket+1:].strip()
 
-                if headers and cells and headers[0].get_text(strip=True) in ["1.", "6.", "8.","9.","14.", "15.", "16."] :
-                    headerNo = headers[0].get_text(strip=True)
-                    
-                    if headerNo == "1.": # Name
-                        title = cells[0].get_text(strip=True)
-                    
-                    elif headerNo == "6.": # Semester
-                        semester = cells[0].get_text(strip=True)
-                    
-                    elif headerNo == "8.": # Credits
-                        creds = cells[0].get_text(strip=True)
+            # Syllabus
+            table = soup.find('td', string='Syllabus').find_parent('table')
+            syllabus = table.find_all('td')[2].contents[1].get_text(strip=True)
+            
+            
+            MODULEDBID = NotionURLToID(getenv("moduleurl"))
+            ASSIGNMENTDBID = NotionURLToID(getenv("assignmenturl"))
+            ASSESSMENTDBID = NotionURLToID(getenv("assesmenturl"))
+            OBJECTIVEDBID = NotionURLToID(getenv("objectiveurl"))
 
-                    elif headerNo == "9.": # Teacher
-                        teacher = cells[0].get_text().strip().split("\n")
-                        teacherEmail = teacher[2].strip()
-                        teacher = teacher[0].strip()
-
-                    elif headerNo == "14.": # Study Times
-                        studyTimes = {
-                            "Study Hours": {},
-                            "Private Study": None,
-                            "Total Hours": None
+            modules[moduleCode] = MakeRequest(
+                # Create a new Module Page
+                "POST",
+                f"https://api.notion.com/v1/pages",
+                "Notion | CREATE | New Module",
+                data={
+                    "parent": {"database_id": MODULEDBID},
+                    "properties": {
+                        "Name": {
+                            "title": [{"text": {"content": f"[{moduleCode}] {title}"}}]
                         }
-                        studyTimes["Study Hours"]["Lectures"] = cells[0].get_text(strip=True)
-                        studyTimes["Study Hours"]["Seminars"] = cells[1].get_text(strip=True)
-                        studyTimes["Study Hours"]["Tutorials"] = cells[2].get_text(strip=True)
-                        studyTimes["Study Hours"]["Lab Practicals"] = cells[3].get_text(strip=True)
-                        studyTimes["Study Hours"]["Fieldwork Placement"] = cells[4].get_text(strip=True)
-                        studyTimes["Study Hours"]["Other"] = cells[5].get_text(strip=True)
-                        studyTimes["Study Hours"]["Total"] = cells[6].get_text(strip=True)
-
-                    elif headerNo == "15.":
-                        studyTimes["Private Study"] = cells[1].get_text(strip=True)
-
-                    elif headerNo == "16.":
-                        studyTimes["Total Hours"] = cells[1].get_text(strip=True)
-
-        # Assessment     
-        table = soup.find('td', string='Assessment').find_parent('table')
-        assessments = []
-        rows = table.find_all('tr')[5:-1]  # Exclude header row
-        for row in rows:
-            cells = row.find_all('td')
-            assessments.append({
-                "Assessment": cells[0].text.strip(),
-                "Type": cells[1].text.strip(),
-                "Weighting": int(cells[2].text.strip()),
-                "Learning Outcomes": cells[5].text.strip().split(', ')
-            })
-        
-        # Aims
-        table = soup.find('td', string='Aims').find_parent('table')
-        aims = table.find_all('tr')[2].contents[3].get_text(strip=True)
-
-        # Learning Objectives
-        table = soup.find('td', string='Learning Outcomes').find_parent('table')
-        los = {}
-        rows = table.find_all('tr')[2:]  # Exclude header row
-        for row in rows:
-            cells = row.find_all('td')
-            txt = cells[1].text.strip()
-            outerBracket = txt.find(")")
-            los[txt[1:outerBracket]] = txt[outerBracket+1:].strip()
-
-        # Syllabus
-        table = soup.find('td', string='Syllabus').find_parent('table')
-        syllabus = table.find_all('td')[2].contents[1].get_text(strip=True)
-        
-        modules[moduleCode] = MakeRequest(
-            # Create a new Module Page
-            "POST",
-            f"https://api.notion.com/v1/pages",
-            "Notion | CREATE | New Module",
-            data={
-                "parent": {"database_id": MODULEDBID},
-                "properties": {
-                    "Name": {
-                        "title": [{"text": {"content": f"[{moduleCode}] {title}"}}]
-                    }
+                    },
                 },
-            },
-        )
-        
-        # Adding stuff to the page
-        """res = MakeRequest(
-            # Add new Module Page blocks
-            "PATCH",
-            f"https://api.notion.com/v1/blocks/{modules[moduleCode]['id']}/children",
-            "Notion | UPDATE | Add basic blocks",
-            data={
-                "children": [
-                    {
-                        "object": "block",
-                        "type": "column_list",
-                        "column_list": {
-                            "children": [
+            )
+            
+            # Adding stuff to Module page
+            """res = MakeRequest(
+                # Add new Module Page blocks
+                "PATCH",
+                f"https://api.notion.com/v1/blocks/{modules[moduleCode]['id']}/children",
+                "Notion | UPDATE | Add basic blocks",
+                data={
+                    "children": [
+                        {
+                            "object": "block",
+                            "type": "column_list",
+                            "column_list": {
+                                "children": [
+                                    {
+                                        "object": "block",
+                                        "type": "column",
+                                        "column": {"children": []},
+                                    },
+                                    {
+                                        "object": "block",
+                                        "type": "column",
+                                        "column": {"children": []},
+                                    },
+                                ]
+                            },
+                        },
+                        {"object": "block", "type": "divider", "divider": {}},
+                        {
+                            "object": "block",
+                            "type": "heading_1",
+                            "heading_1": {
+                                "rich_text": [
+                                    {"text": {"content": "Tutorial / Lab Schedule"}}
+                                ],
+                                "is_toggleable": True,
+                            },
+                        },
+                    ]
+                },
+            )
+            for result in res["results"]:
+                if result.get("type") == "column_list":
+                    ListIDs = result.get("id")
+                    break
+            res = MakeRequest(
+                # Get a module's columns
+                "Get", f"https://api.notion.com/v1/blocks/{ListIDs}/Children",
+                "Notion | READ | Module Columns ")
+            ListIDs = []
+            for result in res["results"]:
+                if result.get("type") == "column":
+                    ListIDs.append(result.get("id"))
+            res = MakeRequest(
+                # Setup the first subpage
+                "Post", f"https://api.notion.com/v1/pages/",
+                "Notion | READ | Module Subpage - Course Syllabus",
+                data={
+                    "parent": {
+                        "type": "page_id",
+                        "page_id": modules[moduleCode]["id"]
+                    },
+                    "properties": {
+                        "Name": {
+                            "title": [
                                 {
-                                    "object": "block",
-                                    "type": "column",
-                                    "column": {"children": []},
-                                },
-                                {
-                                    "object": "block",
-                                    "type": "column",
-                                    "column": {"children": []},
-                                },
+                                    "text": {
+                                        "content": "Course Syllabus"
+                                    }
+                                }
                             ]
-                        },
-                    },
-                    {"object": "block", "type": "divider", "divider": {}},
-                    {
-                        "object": "block",
-                        "type": "heading_1",
-                        "heading_1": {
-                            "rich_text": [
-                                {"text": {"content": "Tutorial / Lab Schedule"}}
-                            ],
-                            "is_toggleable": True,
-                        },
-                    },
-                ]
-            },
-        )
-        for result in res["results"]:
-            if result.get("type") == "column_list":
-                ListIDs = result.get("id")
-                break
-        res = MakeRequest(
-            # Get a module's columns
-            "Get", f"https://api.notion.com/v1/blocks/{ListIDs}/Children",
-            "Notion | READ | Module Columns ")
-        ListIDs = []
-        for result in res["results"]:
-            if result.get("type") == "column":
-                ListIDs.append(result.get("id"))
-        res = MakeRequest(
-            # Setup the first subpage
-            "Post", f"https://api.notion.com/v1/pages/",
-            "Notion | READ | Module Subpage - Course Syllabus",
-            data={
-                "parent": {
-                    "type": "page_id",
-                    "page_id": modules[moduleCode]["id"]
-                },
-                "properties": {
-                    "Name": {
-                        "title": [
-                            {
-                                "text": {
-                                    "content": "Course Syllabus"
-                                }
-                            }
-                        ]
+                        }
                     }
-                }
-            })
-        modules[moduleCode]["CourseSyllabusID"] = res["id"]
-        res = MakeRequest(
-            # Setup the second subpage
-            "Post", f"https://api.notion.com/v1/pages/",
-            "Notion | READ | Module Subpage - Topics and Objectives",
-            data={
-                "parent": {
-                    "type": "page_id",
-                    "page_id": modules[moduleCode]["id"]
-                },
-                "properties": {
-                    "Name": {
-                        "title": [
-                            {
-                                "text": {
-                                    "content": "Topics and Objectives"
+                })
+            modules[moduleCode]["CourseSyllabusID"] = res["id"]
+            res = MakeRequest(
+                # Setup the second subpage
+                "Post", f"https://api.notion.com/v1/pages/",
+                "Notion | READ | Module Subpage - Topics and Objectives",
+                data={
+                    "parent": {
+                        "type": "page_id",
+                        "page_id": modules[moduleCode]["id"]
+                    },
+                    "properties": {
+                        "Name": {
+                            "title": [
+                                {
+                                    "text": {
+                                        "content": "Topics and Objectives"
+                                    }
                                 }
-                            }
-                        ]
+                            ]
+                        }
                     }
-                }
-            })
-        modules[moduleCode]["TopicsObjectivesID"] = res["id"]"""
-        
-        modules[moduleCode] = MakeRequest(
-            # Update Page properties
-            "PATCH",
-            f"https://api.notion.com/v1/pages/{modules[moduleCode]['id']}",
-            "Notion | UPDATE | Page properties",
-            data={
-                "properties":{
-                    "Syllabus Link": {"url": url},
-                    "Credits": {"number": int(creds)},
-                    "Instructor Email": {"email": teacherEmail},
-                    "Instructor Name": {"rich_text": [{"text": {"content": teacher}}]},
-                    "Year": {"select": {"name": YEARS[acaYear]}},
-                    "Semester": {"multi_select" : [{"name": SEMESTERS[semester]} if semester != "Whole Session" else [{"name": sem} for sem in list(SEMESTERS.keys())]]}
-                }
-            })
-        
+                })
+            modules[moduleCode]["TopicsObjectivesID"] = res["id"]"""
+            
+            # Creating Pages
+            modules[moduleCode] = MakeRequest(
+                # Update Page properties
+                "PATCH",
+                f"https://api.notion.com/v1/pages/{modules[moduleCode]['id']}",
+                "Notion | UPDATE | Page properties",
+                data={
+                    "properties":{
+                        "Syllabus Link": {"url": url},
+                        "Credits": {"number": int(creds)},
+                        "Instructor Email": {"email": teacherEmail},
+                        "Instructor Name": {"rich_text": [{"text": {"content": teacher}}]},
+                        "Year": {"select": {"name": YEARS[acaYear]}},
+                        "Semester": {"multi_select" : [{"name": SEMESTERS[semester]} if semester != "Whole Session" else [{"name": sem} for sem in list(SEMESTERS.keys())]]}
+                    }
+                })
+            for assessment in assessments:
+                res = MakeRequest(
+                    # Create a new Assignment Page
+                    "POST",
+                    f"https://api.notion.com/v1/pages",
+                    "Notion | CREATE | New Assignment",
+                    data={
+                        "parent": {"database_id": ASSIGNMENTDBID},
+                        "properties": {
+                            "Name": {
+                                "title": [{"text": {"content": assessment["Assessment"] }}]
+                            },
+                            "Course" : {"relation": [{"id": modules[moduleCode]['id']}]},
+                            "Task": {"multi_select" : [{"name": assessment["Type"]}]}
+                        }
+                    }
+                )
+                MakeRequest(
+                    # Create a new Assessment Page
+                    "POST",
+                    f"https://api.notion.com/v1/pages",
+                    "Notion | CREATE | New Assessment",
+                    data={
+                        "parent": {"database_id": ASSESSMENTDBID},
+                        "properties": {
+                            "Material": {
+                                "title": [{"text": {"content": assessment["Assessment"] }}]
+                            },
+                            "Module" : {"relation": [{"id": modules[moduleCode]['id']}]},
+                            "Linked Assignments" : {"relation": [{"id": res['id']}]},
+                            "Weighting": {"number": int(assessment["Weighting"])/100}
+                        }
+                    }
+                )
+            for lo in los:
+                res = MakeRequest(
+                    # Create a new Objective Page
+                    "POST",
+                    f"https://api.notion.com/v1/pages",
+                    "Notion | CREATE | New Objective",
+                    data={
+                        "parent": {"database_id": OBJECTIVEDBID},
+                        "properties": {
+                            "Topic/Objective": {
+                                "title": [{"text": {"content": los[lo] }}]
+                            },
+                            "Course" : {"relation": [{"id": modules[moduleCode]['id']}]},
+                            "Type": {"multi_select" : [{"name": lo[:-1]}]},
+                            "Number": {"number" :  int(lo[-1])}
+                            
+                        }
+                    }
+                )
 
-    #print(modules["COMP201"])
+        else:
+            print("Module Page not found: " + moduleCode)

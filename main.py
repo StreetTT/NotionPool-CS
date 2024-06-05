@@ -33,19 +33,21 @@ SEMESTERS = {
 # General Subroutines
 
 
-def MakeRequest(method: str, url: str, message: str, data: dict = None):
+def MakeRequest(method: str, url: str, message: str, data: dict = None, raw: bool = False, returnError: bool = False):
     if data is None:
         res = request(method=method, url=url, headers=HEADERS)
     else:
         res = request(method=method, url=url, json=data, headers=HEADERS)
-    print(f"{res.status_code} | {method} | {message}")
+    print(f"{res.status_code} | {method} | {url.removeprefix("https://").split("/", 1)[0]} | {message}")
     try:
         res.raise_for_status()
         if res.status_code == 200:
-            return loads(res.text)
+            return (res if raw else loads(res.text))
         else:
             print("Error: Unexpected status code.")
     except exceptions.HTTPError as e:
+        if returnError:
+            return e
         print(f"URL: {e.response.url}")
         print(f"Response Message: {e.response.text}")
         exit(1)
@@ -79,7 +81,7 @@ def get_academic_year(date:dt):
     year = date.year
     
     # Determine the academic year
-    if date.month >= 5:  # If the month is May (5) or later
+    if date.month >= 6:  # If the month is June (6) or later
         start_year = year
         end_year = year + 1
     else:  # If the month is earlier than September
@@ -92,7 +94,7 @@ def get_academic_year(date:dt):
 
 
 if __name__ == "__main__":
-    modules = {"COMP201": None}
+    modules = {}
     print("Enter Modules: ")
     print("Enter X when done.")
     module = None
@@ -104,14 +106,17 @@ if __name__ == "__main__":
         except:
             pass
         modules[module] = None
-    # print("---")
+    modules.pop("X")
+    print("---")
     for moduleCode in modules:
         # Setting Up the Module Page
         print("---" + moduleCode + "---")
         acaYear = get_academic_year(dt.now())
         url = f"https://tulip.liv.ac.uk/mods/student/cm_{moduleCode}_{acaYear}.htm"
-        res = request("GET", url)
-        if res.status_code == 200:
+        res = MakeRequest("GET",url,"Liverpool's Module Page",raw=True, returnError=True)
+        if isinstance(res, Exception) or res.status_code != 200:
+            print("Module Page not found: " + moduleCode)
+        else:
 
             soup = BeautifulSoup(res.content, 'html.parser')
             tables = soup.find_all('table', align='center')
@@ -123,7 +128,7 @@ if __name__ == "__main__":
                     headers = row.find_all('td', class_='ddheader')
                     cells = row.find_all('td', class_='dddefault')
 
-                    if headers and cells and headers[0].get_text(strip=True) in ["1.", "6.", "8.","9.","14.", "15.", "16."] :
+                    if headers and cells and headers[0].get_text(strip=True) in ["1.", "6.", "8.","9.","14.", "15."] :
                         headerNo = headers[0].get_text(strip=True)
                         
                         if headerNo == "1.": # Name
@@ -141,24 +146,16 @@ if __name__ == "__main__":
                             teacher = teacher[0].strip()
 
                         elif headerNo == "14.": # Study Times
-                            studyTimes = {
-                                "Study Hours": {},
-                                "Private Study": None,
-                                "Total Hours": None
-                            }
-                            studyTimes["Study Hours"]["Lectures"] = cells[0].get_text(strip=True)
-                            studyTimes["Study Hours"]["Seminars"] = cells[1].get_text(strip=True)
-                            studyTimes["Study Hours"]["Tutorials"] = cells[2].get_text(strip=True)
-                            studyTimes["Study Hours"]["Lab Practicals"] = cells[3].get_text(strip=True)
-                            studyTimes["Study Hours"]["Fieldwork Placement"] = cells[4].get_text(strip=True)
-                            studyTimes["Study Hours"]["Other"] = cells[5].get_text(strip=True)
-                            studyTimes["Study Hours"]["Total"] = cells[6].get_text(strip=True)
+                            studyTimes = {}
+                            studyTimes["Lectures"] = cells[0].get_text(strip=True)
+                            studyTimes["Seminars"] = cells[1].get_text(strip=True)
+                            studyTimes["Tutorials"] = cells[2].get_text(strip=True)
+                            studyTimes["Lab Practicals"] = cells[3].get_text(strip=True)
+                            studyTimes["Fieldwork Placement"] = cells[4].get_text(strip=True)
+                            studyTimes["Other"] = cells[5].get_text(strip=True)
 
                         elif headerNo == "15.":
                             studyTimes["Private Study"] = cells[1].get_text(strip=True)
-
-                        elif headerNo == "16.":
-                            studyTimes["Total Hours"] = cells[1].get_text(strip=True)
 
             # Assessment     
             table = soup.find('td', string='Assessment').find_parent('table')
@@ -202,7 +199,7 @@ if __name__ == "__main__":
                 # Create a new Module Page
                 "POST",
                 f"https://api.notion.com/v1/pages",
-                "Notion | CREATE | New Module",
+                "New Module",
                 data={
                     "parent": {"database_id": MODULEDBID},
                     "properties": {
@@ -214,131 +211,201 @@ if __name__ == "__main__":
             )
             
             # Adding stuff to Module page
-            """res = MakeRequest(
-                # Add new Module Page blocks
-                "PATCH",
-                f"https://api.notion.com/v1/blocks/{modules[moduleCode]['id']}/children",
-                "Notion | UPDATE | Add basic blocks",
+            res = MakeRequest(
+                # Setup the Module Information subpage
+                "PATCH", f"https://api.notion.com/v1/blocks/{modules[moduleCode]["id"]}/children",
+                "Module Information Template",
                 data={
-                    "children": [
-                        {
-                            "object": "block",
-                            "type": "column_list",
-                            "column_list": {
-                                "children": [
-                                    {
-                                        "object": "block",
-                                        "type": "column",
-                                        "column": {"children": []},
-                                    },
-                                    {
-                                        "object": "block",
-                                        "type": "column",
-                                        "column": {"children": []},
-                                    },
-                                ]
-                            },
-                        },
-                        {"object": "block", "type": "divider", "divider": {}},
-                        {
-                            "object": "block",
-                            "type": "heading_1",
-                            "heading_1": {
-                                "rich_text": [
-                                    {"text": {"content": "Tutorial / Lab Schedule"}}
-                                ],
-                                "is_toggleable": True,
-                            },
-                        },
-                    ]
-                },
+                    "children": [{
+                        "paragraph": {
+                            "rich_text": [
+                                {
+                                "text": {
+                                    "content": "Module Information"
+                                }
+                                }
+                            ]
+                            }
+                    }]
+                }
+            )
+            res = MakeRequest(
+                # Setup the Module Information columns
+                "PATCH", f"https://api.notion.com/v1/blocks/{res['results'][0]["id"]}/children",
+                "Module Information Template - Columns List",
+                data={
+                    "children": [{
+                        "type": "column_list",
+                        "column_list": {
+                            "children": [
+                                {
+                                    "type": "column",
+                                    "column": {"children": []},
+                                },
+                                {
+                                    "type": "column",
+                                    "column": {"children": []},
+                                },
+                            ]
+                        }
+                    }]
+                }
             )
             for result in res["results"]:
                 if result.get("type") == "column_list":
-                    ListIDs = result.get("id")
+                    importantIDs = result.get("id")
                     break
             res = MakeRequest(
                 # Get a module's columns
-                "Get", f"https://api.notion.com/v1/blocks/{ListIDs}/Children",
-                "Notion | READ | Module Columns ")
-            ListIDs = []
+                "GET", f"https://api.notion.com/v1/blocks/{importantIDs}/Children",
+                "Module Information Template - Columns ")
+            importantIDs = []
             for result in res["results"]:
                 if result.get("type") == "column":
-                    ListIDs.append(result.get("id"))
-            res = MakeRequest(
-                # Setup the first subpage
-                "Post", f"https://api.notion.com/v1/pages/",
-                "Notion | READ | Module Subpage - Course Syllabus",
-                data={
-                    "parent": {
-                        "type": "page_id",
-                        "page_id": modules[moduleCode]["id"]
-                    },
-                    "properties": {
-                        "Name": {
-                            "title": [
-                                {
-                                    "text": {
-                                        "content": "Course Syllabus"
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                })
-            modules[moduleCode]["CourseSyllabusID"] = res["id"]
-            res = MakeRequest(
-                # Setup the second subpage
-                "Post", f"https://api.notion.com/v1/pages/",
-                "Notion | READ | Module Subpage - Topics and Objectives",
-                data={
-                    "parent": {
-                        "type": "page_id",
-                        "page_id": modules[moduleCode]["id"]
-                    },
-                    "properties": {
-                        "Name": {
-                            "title": [
-                                {
-                                    "text": {
-                                        "content": "Topics and Objectives"
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                })
-            modules[moduleCode]["TopicsObjectivesID"] = res["id"]"""
+                    importantIDs.append(result.get("id"))
             
-            # Creating Pages
+            children = [{
+                        "heading_2": {
+                            "rich_text": [
+                                {
+                                "text": {
+                                    "content": "Syllabus"
+                                }
+                                }
+                            ]
+                            }
+                    }] + [{
+                        "paragraph": {
+                            "rich_text": [
+                                {
+                                "text": {
+                                    "content": chunk
+                                }
+                                }
+                            ]
+                            }
+                    } for chunk in [syllabus[i:i + 2000] for i in range(0, len(syllabus), 2000)]] +  [{
+                        "heading_2": {
+                            "rich_text": [
+                                {
+                                "text": {
+                                    "content": "Tutorial / Lab Schedule"
+                                }
+                                }
+                            ]
+                            }
+                    }]
+            
+            res = MakeRequest(
+            # Setup the left column
+            "PATCH", f"https://api.notion.com/v1/blocks/{importantIDs[0]}/Children",
+            "Module Information Template - Left",
+            data={
+                    "children": children
+                }
+            )
+            children = [{
+                "table_row" : {
+                "cells":[[{
+                    "text": {
+                        "content": "Type"
+                    }
+                }],[{
+                    "text": {
+                        "content": "Hours"
+                    }
+                }]
+
+                ]
+            }}]
+            children += [{
+                "table_row" : {
+                "cells":[[{
+                    "text": {
+                        "content": heading
+                    }
+                }],[{
+                    "text": {
+                        "content": studyTimes[heading]
+                    }
+                }]
+
+                ]
+            }} for heading in studyTimes]
+            res = MakeRequest(
+            # Setup the right column
+            "PATCH", f"https://api.notion.com/v1/blocks/{importantIDs[1]}/Children",
+            "Module Information Template - Right",
+            data={
+                    "children": [{
+                        "heading_2": {
+                            "rich_text": [
+                                {
+                                "text": {
+                                    "content": "Aims"
+                                }
+                                }
+                            ]
+                            }
+                    }] + [{
+                        "paragraph": {
+                            "rich_text": [
+                                {
+                                "text": {
+                                    "content": chunk
+                                }
+                                }
+                            ]
+                            }
+                    } for chunk in [aims[i:i + 2000] for i in range(0, len(aims), 2000)] ] + [{
+                        "heading_2": {
+                            "rich_text": [
+                                {
+                                "text": {
+                                    "content": "Study Hours"
+                                }
+                                }
+                            ]
+                            }
+                    },
+                    {
+                        "table": {
+                            "table_width": 2,
+                            "has_column_header": True,
+                            "has_row_header": True,
+                            "children": children
+                        }
+                    }]
+                }
+            )
             modules[moduleCode] = MakeRequest(
                 # Update Page properties
                 "PATCH",
                 f"https://api.notion.com/v1/pages/{modules[moduleCode]['id']}",
-                "Notion | UPDATE | Page properties",
+                "Module Page properties",
                 data={
                     "properties":{
                         "Syllabus Link": {"url": url},
-                        "Credits": {"number": int(creds)},
+                        "Credits": {"number": float(creds)},
                         "Instructor Email": {"email": teacherEmail},
                         "Instructor Name": {"rich_text": [{"text": {"content": teacher}}]},
                         "Year": {"select": {"name": YEARS[acaYear]}},
                         "Semester": {"multi_select" : [{"name": SEMESTERS[semester]} if semester != "Whole Session" else [{"name": sem} for sem in list(SEMESTERS.keys())]]}
                     }
                 })
-            for assessment in assessments:
+            for index, assessment in enumerate(assessments):
                 res = MakeRequest(
                     # Create a new Assignment Page
                     "POST",
                     f"https://api.notion.com/v1/pages",
-                    "Notion | CREATE | New Assignment",
+                    f"New Assignment | {index+1}/{len(assessments)}",
                     data={
                         "parent": {"database_id": ASSIGNMENTDBID},
                         "properties": {
                             "Name": {
                                 "title": [{"text": {"content": assessment["Assessment"] }}]
                             },
-                            "Course" : {"relation": [{"id": modules[moduleCode]['id']}]},
+                            "Module" : {"relation": [{"id": modules[moduleCode]['id']}]},
                             "Task": {"multi_select" : [{"name": assessment["Type"]}]}
                         }
                     }
@@ -347,7 +414,7 @@ if __name__ == "__main__":
                     # Create a new Assessment Page
                     "POST",
                     f"https://api.notion.com/v1/pages",
-                    "Notion | CREATE | New Assessment",
+                    f"New Assessment | {index+1}/{len(assessments)}",
                     data={
                         "parent": {"database_id": ASSESSMENTDBID},
                         "properties": {
@@ -360,25 +427,22 @@ if __name__ == "__main__":
                         }
                     }
                 )
-            for lo in los:
+            for index, lo in enumerate(los):
                 res = MakeRequest(
                     # Create a new Objective Page
                     "POST",
                     f"https://api.notion.com/v1/pages",
-                    "Notion | CREATE | New Objective",
+                    f"New Objective | {index+1}/{len(los)}",
                     data={
                         "parent": {"database_id": OBJECTIVEDBID},
                         "properties": {
                             "Topic/Objective": {
                                 "title": [{"text": {"content": los[lo] }}]
                             },
-                            "Course" : {"relation": [{"id": modules[moduleCode]['id']}]},
+                            "Module" : {"relation": [{"id": modules[moduleCode]['id']}]},
                             "Type": {"multi_select" : [{"name": lo[:-1]}]},
                             "Number": {"number" :  int(lo[-1])}
                             
                         }
                     }
                 )
-
-        else:
-            print("Module Page not found: " + moduleCode)

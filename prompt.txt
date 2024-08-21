@@ -1,0 +1,114 @@
+You are a proactive university student, currently looking into your courses for the next semester and have found a syllabus outline, however it is formatted terribly. The following are syllabus' for different courses, convert the text given into bullet points, using nested bullet points for subtopics where appropriate. When giving nested bullets, do not repeat the parent bullet information. When giving a response, write nothing but the bulleted information. You can indent a max of 4 levels.
+Below are 2 examples of a the conversion: original1.txt to bulleted1.txt and original2.txt to bulleted2.txt
+
+```original1.txt
+Computation as static measurement: Numbers and types of number: integer, rational, irrational. Structured forms: Vectors and vector operations. Linear transformations. Applications in video games and robot motion planning. (3 lectures)
+
+Computation as dynamic measurement: Introduction to calculus; functions and their graphs: geometric interpretation of derivative; standard differentiation formulae and rules; maxima and minima, information obtained from second derivative; basic integral calculus; geometric interpretation of integral; standard integral formulae. (5-6 lectures)
+
+Beyond traditional notions of number : Definition of complex number, representation forms (coordinate, polar), properties of complex numbers: conjugates, modulus, standard arithmetic operations. (3 lectures)
+Computational approaches for hard calculations: Providing support for experimental claims: regression methods (1-2 lectures)
+
+Computational models of richer structures: Linear and Matrix algebra; common computational objects described by matrices; weighted directed graphs; properties and operations on matrices: determinant, singularity and invertibility; eigenvalues and eigenvectors; conditions guaranteeing existence of useful forms - the Perron-Frobenius Theorem: notable applications of the PF-eigenvector: Google page ranking algorithm; ranking of sports leagues. (8-9 lectures)
+A bit of information theory: Shannon's Fundamental questions: What is information? How is it measured? Shannon's model of communication; information content as reduced uncertainty; the notion of information entropy and the Source Coding Theorem. Dealing with noise and redundancy coding; higher levels: entropy and redundancy in Natural language; very informal introduction to n-gram language models and applications: text prediction, plagiarism/collusion detection (5-7 lectures)
+```
+
+```bulleted1.txt
+- Computation as static measurement - (3 lectures)
+    - Numbers and types of number: integer, rational, irrational.
+    - Structured forms: Vectors and vector operations.
+    - Linear transformations.
+    - Applications in video games and robot motion planning.
+- Computation as dynamic measurement - (5-6 lectures)
+    - Introduction to calculus;
+    - Functions and their graphs: geometric interpretation of derivative
+    - Standard differentiation formulae and rules
+    - Maxima and minima, information obtained from second derivative
+    - Basic integral calculus;
+    - Geometric interpretation of integral
+    - Standard integral formulae.
+- Beyond traditional notions of number - (3 lectures)
+    - Definition of complex number,
+    - representation forms (coordinate, polar),
+    - properties of complex numbers:
+        - conjugates,
+        - modulus,
+        - standard arithmetic operations.
+- Computational approaches for hard calculations - (1-2 lectures)
+    - Providing support for experimental claims: regression methods
+- Computational models of richer structures - (8-9 lectures)
+    - Linear and Matrix algebra
+    - common computational objects described by matrices
+    - weighted directed graphs
+    - properties and operations on matrices
+    - determinant, singularity and invertibility
+    - eigenvalues and eigenvectors
+    - conditions guaranteeing existence of useful forms - the Perron-Frobenius Theorem
+    - notable applications of the PF-eigenvector
+    - Google page ranking algorithm
+    - ranking of sports leagues
+- A bit of information theory - (5-7 lectures)
+    - Shannon's Fundamental questions:
+        - What is information? How is it measured?
+    - Shannon's model of communication
+    - information content as reduced uncertainty
+    - the notion of information entropy and the Source Coding Theorem
+    - Dealing with noise and redundancy coding
+    - Entropy and redundancy in Natural language
+    - Very informal introduction to n-gram language models and applications
+    - Text prediction, plagiarism/collusion detection
+```
+
+```original2.txt
+Number systems and proof techniques: natural numbers, integers, rationals, real numbers, prime numbers, proof by contradiction and proof by induction.
+Approaches to describing collections of objects: sets and set operations, unary and binary relations, properties of binary relations, partial orders and equivalence relations, inverse relations, and compositions of relations.
+Functions: properties of functions, inverse functions and compositions of functions, the pigeonhole principle.
+Propositional logic: syntax and construction of formulas, semantics, interpretations and truth  tables, tautologies, contradictions, semantic consequence and logical equivalence.
+Combinatorics: notation for sums, products, and factorials, Binomial coefficients, counting permutations, subsets, subsequences and functions.
+Discrete Probability: sample spaces, events, conditional probability, independence, random variables and expectation.
+```
+
+```bulleted2.txt
+- Number systems and proof techniques
+    - Natural numbers
+    - Integers
+    - Rationals
+    - Real numbers
+    - Prime numbers
+    - Proof by contradiction
+    - Proof by induction
+- Approaches to describing collections of objects
+    - Sets and set operations
+    - Unary and binary relations
+    - Properties of binary relations
+    - Partial orders and equivalence relations
+    - Inverse relations
+    - Compositions of relations
+- Functions
+    - Properties of functions
+    - Inverse functions
+    - Compositions of functions
+    - The pigeonhole principle
+- Propositional logic
+    - Syntax and construction of formulas
+    - Semantics
+    - Interpretations and truth tables
+    - Tautologies
+    - Contradictions
+    - Semantic consequence
+    - Logical equivalence
+- Combinatorics
+    - Notation for sums, products, and factorials
+    - Binomial coefficients
+    - Counting permutations
+    - Counting subsets
+    - Counting subsequences
+    - Counting functions
+- Discrete Probability
+    - Sample spaces
+    - Events
+    - Conditional probability
+    - Independence
+    - Random variables
+    - Expectation
+```

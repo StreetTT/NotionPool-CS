@@ -5,25 +5,25 @@ from json import loads
 from datetime import datetime as dt
 from datetime import timedelta as td
 from dotenv import load_dotenv as LoadEnvVariables
-from random import choices
 from bs4 import BeautifulSoup
+import openai
+
 
 # Get Globals
 LoadEnvVariables()
 NOTIONTOKEN = getenv("notiontoken")
+OPENAIAPIKEY = getenv("openaiapikey")
 HEADERS = {
     "Authorization": f"Bearer {NOTIONTOKEN}",
     "Notion-Version": "2022-06-28",
     "Content-Type": "application/json",
 }
-
 YEARS = {
     "202324": "First [23-24]",
     "202425": "Second [24-25]",
     "202526": "Third [25-26]",
     "202627": "Fourth [26-27]"
 }
-
 SEMESTERS = {
     "Second Semester" : "Second [Jan-May]",
     "First Semester" : "First [Sep-Dec]"
@@ -31,8 +31,6 @@ SEMESTERS = {
 
 
 # General Subroutines
-
-
 def MakeRequest(method: str, url: str, message: str, data: dict = None, raw: bool = False, returnError: bool = False):
     if data is None:
         res = request(method=method, url=url, headers=HEADERS)
@@ -43,15 +41,10 @@ def MakeRequest(method: str, url: str, message: str, data: dict = None, raw: boo
         res.raise_for_status()
         if res.status_code == 200:
             return (res if raw else loads(res.text))
-        else:
-            print("Error: Unexpected status code.")
     except exceptions.HTTPError as e:
-        if returnError:
-            return e
         print(f"URL: {e.response.url}")
         print(f"Response Message: {e.response.text}")
         exit(1)
-
 
 def Query(url, message, blockQuery=False, query={}):
     # Integrates Pagenation to collet all objects from notion
@@ -65,7 +58,6 @@ def Query(url, message, blockQuery=False, query={}):
         if more:
             query["start_cursor"] = Data["next_cursor"]
     return results
-
 
 def NotionURLToID(url: str) -> str:
     # Turns the URL of a Notion page into its ID
@@ -91,11 +83,73 @@ def get_academic_year(date:dt):
     # Format the academic year as YYYYYY
     return f"20{start_year % 100:02d}{end_year % 100:02d}"
 
+def bulletSyllabus(text, chunk_size=2000):
+    bullet_text = ""
+    client = openai.OpenAI(api_key=OPENAIAPIKEY)
+    with open("prompt.txt", "r") as f:
+        prompt = f.read()
+    
+    # Initialize OpenAI API
+    logmsg = " | Module Access | openai | Convert syllabus into structured bullet points"
+    try: 
+        stream = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": text}
+            ],
+            stream=True,
+        )
+        print(f"200" + logmsg)
+    except openai.error.OpenAIError as e: 
+        print(f"400" + logmsg)
+        print(f"Response Message: {e}")
+        exit(1)
+    for chunk in stream:
+        if chunk.choices[0].delta.content is not None:
+            bullet_text += chunk.choices[0].delta.content
+    
+    return bullet_text
+
+def bulletstoNotion(text):
+    lines = text.strip().split('\n')
+    root = []
+    stack = [(root, -1)]  # (current_list, current_level)
+
+    for line in lines:
+        stripped_line = line.strip()
+        if not stripped_line:
+            continue  # Skip empty lines
+        
+        indent_level = (len(line) - len(stripped_line)) // 4  # assuming 4 spaces per indent level
+        content = stripped_line.strip('- ').strip()
+
+        if content:  # Process non-empty content
+            bullet_item = {'bulleted_list_item': {'rich_text': [{'text': {'content': content}}]}}
+            
+            # Adjust the stack based on the current indent level
+            while stack and stack[-1][1] >= indent_level:
+                stack.pop()
+            
+            if stack:
+                stack[-1][0].append(bullet_item)
+                # # another 0
+
+            # Add a new stack entry for children if not at max depth
+            if indent_level < 4:
+                new_list = []
+                bullet_item['bulleted_list_item']['children'] = new_list
+                stack.append((new_list, indent_level))
+            else:
+                bullet_item['bulleted_list_item']['children'] = []
+
+    return root
+
 
 
 if __name__ == "__main__":
     modules = {}
-    print("Enter Modules: ")
+    print("Enter Module Numbers: ")
     print("Enter X when done.")
     module = None
     while module != "X":
@@ -274,17 +328,7 @@ if __name__ == "__main__":
                                 }
                             ]
                             }
-                    }] + [{
-                        "paragraph": {
-                            "rich_text": [
-                                {
-                                "text": {
-                                    "content": chunk
-                                }
-                                }
-                            ]
-                            }
-                    } for chunk in [syllabus[i:i + 2000] for i in range(0, len(syllabus), 2000)]] +  [{
+                    }] + bulletstoNotion(bulletSyllabus(syllabus)) +  [{
                         "heading_2": {
                             "rich_text": [
                                 {

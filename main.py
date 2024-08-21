@@ -11,7 +11,7 @@ import openai
 
 # Get Globals
 LoadEnvVariables()
-NOTIONTOKEN = getenv("notiontoken")
+NOTIONTOKEN = getenv("bowtiontoken")
 OPENAIAPIKEY = getenv("openaiapikey")
 HEADERS = {
     "Authorization": f"Bearer {NOTIONTOKEN}",
@@ -480,7 +480,7 @@ if __name__ == "__main__":
                     data={
                         "parent": {"database_id": OBJECTIVEDBID},
                         "properties": {
-                            "Topic/Objective": {
+                            "Objective": {
                                 "title": [{"text": {"content": los[lo] }}]
                             },
                             "Module" : {"relation": [{"id": modules[moduleCode]['id']}]},

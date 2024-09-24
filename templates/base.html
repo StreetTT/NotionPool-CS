@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta property="og:title" content="Template" />
+        <meta property="og:description" content="Dumb Description" />
+        <meta property="og:image" content="{{ url_for('static', filename='notionlogo.png') }}" />
+
+        <title>{% block title %}{% endblock %} | NPCS</title>
+
+        <link rel="icon" href="{{ url_for('static', filename='notionlogo.ico') }}" type="image/x-icon" />
+    </head>
+    <body>
+
+        <main>
+            {% block content %} {% endblock %}
+        </main>
+
+
+    </body>
+</html>

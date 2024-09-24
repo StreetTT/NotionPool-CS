@@ -19,14 +19,15 @@ HEADERS = {
     "Content-Type": "application/json",
 }
 YEARS = {
-    "202324": "First [23-24]",
-    "202425": "Second [24-25]",
-    "202526": "Third [25-26]",
-    "202627": "Fourth [26-27]"
+    "202324": "First",
+    "202425": "Second",
+    "202526": "Third",
+    "202627": "Fourth",
+    "202728": "Fifth"
 }
 SEMESTERS = {
-    "Second Semester" : "Second [Jan-May]",
-    "First Semester" : "First [Sep-Dec]"
+    "Second Semester" : "Second",
+    "First Semester" : "First"
 }
 
 
@@ -42,6 +43,8 @@ def MakeRequest(method: str, url: str, message: str, data: dict = None, raw: boo
         if res.status_code == 200:
             return (res if raw else loads(res.text))
     except exceptions.HTTPError as e:
+        if returnError:
+            return e
         print(f"URL: {e.response.url}")
         print(f"Response Message: {e.response.text}")
         exit(1)
@@ -125,24 +128,34 @@ def bulletstoNotion(text):
         content = stripped_line.strip('- ').strip()
 
         if content:  # Process non-empty content
-            bullet_item = {'bulleted_list_item': {'rich_text': [{'text': {'content': content}}]}}
-            
+            bullet_item = {
+                'bulleted_list_item': {
+                    'rich_text': [
+                        {'text': {'content': content}}
+                    ]
+                }
+            }
             # Adjust the stack based on the current indent level
             while stack and stack[-1][1] >= indent_level:
                 stack.pop()
             
             if stack:
                 stack[-1][0].append(bullet_item)
-                # # another 0
 
             # Add a new stack entry for children if not at max depth
-            if indent_level < 4:
+            if indent_level < 4 and content:  # Ensure non-empty content before adding a new list
                 new_list = []
                 bullet_item['bulleted_list_item']['children'] = new_list
                 stack.append((new_list, indent_level))
-            else:
-                bullet_item['bulleted_list_item']['children'] = []
+    
+    def clean_empty_children(blocks):
+        for block in blocks:
+            if 'children' in block['bulleted_list_item'] and not block['bulleted_list_item']['children']:
+                del block['bulleted_list_item']['children']  # Remove empty children
+            elif 'children' in block['bulleted_list_item']:
+                clean_empty_children(block['bulleted_list_item']['children'])  # Recur for nested blocks
 
+    clean_empty_children(root)
     return root
 
 
@@ -192,7 +205,7 @@ if __name__ == "__main__":
                             semester = cells[0].get_text(strip=True)
                         
                         elif headerNo == "8.": # Credits
-                            creds = cells[0].get_text(strip=True)
+                            credits = cells[0].get_text(strip=True)
 
                         elif headerNo == "9.": # Teacher
                             teacher = cells[0].get_text().strip().split("\n")
@@ -242,12 +255,22 @@ if __name__ == "__main__":
             # Syllabus
             table = soup.find('td', string='Syllabus').find_parent('table')
             syllabus = table.find_all('td')[2].contents[1].get_text(strip=True)
-            
-            
-            MODULEDBID = NotionURLToID(getenv("moduleurl"))
-            ASSIGNMENTDBID = NotionURLToID(getenv("assignmenturl"))
-            ASSESSMENTDBID = NotionURLToID(getenv("assesmenturl"))
-            OBJECTIVEDBID = NotionURLToID(getenv("objectiveurl"))
+
+            res = MakeRequest(
+                "GET",
+                f"https://api.notion.com/v1/blocks/{NotionURLToID(getenv("homepageurl"))}/children",
+                "Find Relevant Databases'"
+            )["results"]
+
+            databaseIDS = {}
+
+            for block in reversed(res):
+                if block.get("type", "") == 'child_database':
+                    databaseIDS.update({
+                        block["child_database"]["title"]: block["id"]
+                    })
+                if set(databaseIDS.keys()) == set(['Objectives', 'Notes', 'Assignments and Exams', 'Assessment Material', 'Modules', 'Reading List']):
+                    break
 
             modules[moduleCode] = MakeRequest(
                 # Create a new Module Page
@@ -255,7 +278,7 @@ if __name__ == "__main__":
                 f"https://api.notion.com/v1/pages",
                 "New Module",
                 data={
-                    "parent": {"database_id": MODULEDBID},
+                    "parent": {"database_id": databaseIDS["Modules"]},
                     "properties": {
                         "Name": {
                             "title": [{"text": {"content": f"[{moduleCode}] {title}"}}]
@@ -266,12 +289,19 @@ if __name__ == "__main__":
             
             # Adding stuff to Module page
             res = MakeRequest(
-                # Setup the Module Information subpage
+                # Setup the Module Information sub-page
                 "PATCH", f"https://api.notion.com/v1/blocks/{modules[moduleCode]["id"]}/children",
                 "Module Information Template",
                 data={
-                    "children": [{
-                        "paragraph": {
+                    "children": [
+                        {
+                            "callout": {
+                                "rich_text": [{'text': {"content": 'Unfortunately, Notion API doesn\'t have a way for the program to create Linked Views or apply templates. \nTo use my template in conjection with this data do the following:\n1. Copy everything\n2. Delete it all \n3. Select the “[COMP] COURSE NAME” template \n4. Paste the data underneath the now loaded template'}}],
+                                "icon": {'type': 'emoji', 'emoji': '‼️'}
+                            }
+                        },
+                        {
+                        "heading_1": {
                             "rich_text": [
                                 {
                                 "text": {
@@ -283,143 +313,81 @@ if __name__ == "__main__":
                     }]
                 }
             )
-            res = MakeRequest(
-                # Setup the Module Information columns
-                "PATCH", f"https://api.notion.com/v1/blocks/{res['results'][0]["id"]}/children",
-                "Module Information Template - Columns List",
-                data={
-                    "children": [{
-                        "type": "column_list",
-                        "column_list": {
-                            "children": [
-                                {
-                                    "type": "column",
-                                    "column": {"children": []},
-                                },
-                                {
-                                    "type": "column",
-                                    "column": {"children": []},
-                                },
-                            ]
-                        }
-                    }]
-                }
-            )
-            for result in res["results"]:
-                if result.get("type") == "column_list":
-                    importantIDs = result.get("id")
-                    break
-            res = MakeRequest(
-                # Get a module's columns
-                "GET", f"https://api.notion.com/v1/blocks/{importantIDs}/Children",
-                "Module Information Template - Columns ")
-            importantIDs = []
-            for result in res["results"]:
-                if result.get("type") == "column":
-                    importantIDs.append(result.get("id"))
-            
-            children = [{
-                        "heading_2": {
-                            "rich_text": [
-                                {
-                                "text": {
-                                    "content": "Syllabus"
-                                }
-                                }
-                            ]
-                            }
-                    }] + bulletstoNotion(bulletSyllabus(syllabus)) +  [{
-                        "heading_2": {
-                            "rich_text": [
-                                {
-                                "text": {
-                                    "content": "Tutorial / Lab Schedule"
-                                }
-                                }
-                            ]
-                            }
-                    }]
-            
+
             res = MakeRequest(
             # Setup the left column
-            "PATCH", f"https://api.notion.com/v1/blocks/{importantIDs[0]}/Children",
-            "Module Information Template - Left",
+            "PATCH", f"https://api.notion.com/v1/blocks/{modules[moduleCode]["id"]}/children",
+            "Module Information Template - Syllabus",
             data={
-                    "children": children
+                    "children": [{"heading_2": {"rich_text": [{"text": {"content": "Syllabus"}}]}}]
+                + bulletstoNotion(bulletSyllabus(syllabus))
                 }
             )
-            children = [{
-                "table_row" : {
-                "cells":[[{
-                    "text": {
-                        "content": "Type"
-                    }
-                }],[{
-                    "text": {
-                        "content": "Hours"
-                    }
-                }]
-
-                ]
-            }}]
-            children += [{
-                "table_row" : {
-                "cells":[[{
-                    "text": {
-                        "content": heading
-                    }
-                }],[{
-                    "text": {
-                        "content": studyTimes[heading]
-                    }
-                }]
-
-                ]
-            }} for heading in studyTimes]
             res = MakeRequest(
-            # Setup the right column
-            "PATCH", f"https://api.notion.com/v1/blocks/{importantIDs[1]}/Children",
-            "Module Information Template - Right",
+            # Setup the left column
+            "PATCH", f"https://api.notion.com/v1/blocks/{modules[moduleCode]["id"]}/children",
+            "Module Information Template - Aims",
             data={
-                    "children": [{
-                        "heading_2": {
-                            "rich_text": [
-                                {
-                                "text": {
-                                    "content": "Aims"
-                                }
-                                }
-                            ]
-                            }
-                    }] + [{
-                        "paragraph": {
-                            "rich_text": [
-                                {
-                                "text": {
-                                    "content": chunk
-                                }
-                                }
-                            ]
-                            }
-                    } for chunk in [aims[i:i + 2000] for i in range(0, len(aims), 2000)] ] + [{
-                        "heading_2": {
-                            "rich_text": [
-                                {
-                                "text": {
-                                    "content": "Study Hours"
-                                }
-                                }
-                            ]
-                            }
-                    },
+                    "children": [{"heading_2": {"rich_text": [{"text": {"content": "Aims"}}]}}]
+                + [
+                    {"paragraph": {"rich_text": [{"text": {"content": chunk}}]}}
+                    for chunk in [aims[i : i + 2000] for i in range(0, len(aims), 2000)] if chunk
+                ]
+                }
+            )
+
+            res = MakeRequest(
+            # Setup the left column
+            "PATCH", f"https://api.notion.com/v1/blocks/{modules[moduleCode]["id"]}/children",
+            "Module Information Template - Study Hours",
+            data={
+                    "children": [
+                    {"heading_2": {"rich_text": [{"text": {"content": "Study Hours"}}]}},
                     {
                         "table": {
                             "table_width": 2,
                             "has_column_header": True,
                             "has_row_header": True,
-                            "children": children
+                            "children": [
+                                {
+                                    "table_row": {
+                                        "cells": [
+                                            [{"text": {"content": "Type"}}],
+                                            [{"text": {"content": "Hours"}}],
+                                        ]
+                                    }
+                                }
+                            ]
+                            + [
+                                {
+                                    "table_row": {
+                                        "cells": [
+                                            [{"text": {"content": heading}}],
+                                            [{"text": {"content": studyTimes[heading]}}],
+                                        ]
+                                    }
+                                }
+                                for heading in studyTimes
+                            ],
                         }
-                    }]
+                    },
+                ]
+                }
+            )
+
+            res = MakeRequest(
+            # Setup the left column
+            "PATCH", f"https://api.notion.com/v1/blocks/{modules[moduleCode]["id"]}/children",
+            "Module Information Template - Tutorial / Lab Schedule",
+            data={
+                    "children": [
+                            {"heading_2": {"rich_text": [{"text": {"content": "Tutorial / Lab Schedule"}}]}},
+                            {"paragraph": {"rich_text": [{"text": {"content": "Monday"}}]}},
+                            {"paragraph": {"rich_text": [{"text": {"content": "Tuesday"}}]}},
+                            {"paragraph": {"rich_text": [{"text": {"content": "Wednesday"}}]}},
+                            {"paragraph": {"rich_text": [{"text": {"content": "Thursday"}}]}},
+                            {"paragraph": {"rich_text": [{"text": {"content": "Friday"}}]}},
+                    ]
                 }
             )
             modules[moduleCode] = MakeRequest(
@@ -430,11 +398,11 @@ if __name__ == "__main__":
                 data={
                     "properties":{
                         "Syllabus Link": {"url": url},
-                        "Credits": {"number": float(creds)},
+                        "Credits": {"number": float(credits)},
                         "Instructor Email": {"email": teacherEmail},
                         "Instructor Name": {"rich_text": [{"text": {"content": teacher}}]},
-                        "Year": {"select": {"name": YEARS[acaYear]}},
-                        "Semester": {"multi_select" : [{"name": SEMESTERS[semester]} if semester != "Whole Session" else [{"name": sem} for sem in list(SEMESTERS.keys())]]}
+                        "Year": {"select": {"name": YEARS[acaYear] + " Year"}},
+                        "Semester": {"multi_select" : [{"name": SEMESTERS[semester] + " Semester"} if semester != "Whole Session" else [{"name": sem + " Semester"} for sem in list(SEMESTERS.keys())]]}
                     }
                 })
             for index, assessment in enumerate(assessments):
@@ -444,7 +412,7 @@ if __name__ == "__main__":
                     f"https://api.notion.com/v1/pages",
                     f"New Assignment | {index+1}/{len(assessments)}",
                     data={
-                        "parent": {"database_id": ASSIGNMENTDBID},
+                        "parent": {"database_id": databaseIDS['Assignments and Exams']},
                         "properties": {
                             "Name": {
                                 "title": [{"text": {"content": assessment["Assessment"] }}]
@@ -460,7 +428,7 @@ if __name__ == "__main__":
                     f"https://api.notion.com/v1/pages",
                     f"New Assessment | {index+1}/{len(assessments)}",
                     data={
-                        "parent": {"database_id": ASSESSMENTDBID},
+                        "parent": {"database_id": databaseIDS['Assessment Material']},
                         "properties": {
                             "Material": {
                                 "title": [{"text": {"content": assessment["Assessment"] }}]
@@ -478,13 +446,13 @@ if __name__ == "__main__":
                     f"https://api.notion.com/v1/pages",
                     f"New Objective | {index+1}/{len(los)}",
                     data={
-                        "parent": {"database_id": OBJECTIVEDBID},
+                        "parent": {"database_id": databaseIDS['Objectives']},
                         "properties": {
-                            "Topic/Objective": {
+                            "Objective": {
                                 "title": [{"text": {"content": los[lo] }}]
                             },
                             "Module" : {"relation": [{"id": modules[moduleCode]['id']}]},
-                            "Type": {"multi_select" : [{"name": lo[:-1]}]},
+                            "Type": {"select" : {"name": lo[:-1]}},
                             "Number": {"number" :  int(lo[-1])}
                             
                         }

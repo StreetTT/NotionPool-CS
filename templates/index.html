@@ -2,4 +2,8 @@
 {% block title %}Home{% endblock %}
 {% block content %}
 <a href="{{ url }}">Add to Notion</a>
+{% if not error %} 
+    <h1> WOO! </h1> 
+    <p> {{data}} </p>
+{% endif %}
 {% endblock %}

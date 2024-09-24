@@ -1,6 +1,6 @@
-from flask import Flask, render_template, make_response
 import os
 import requests
+from flask import Flask, render_template, make_response, request as rq
 from requests import request, exceptions
 from json import loads
 
@@ -34,7 +34,7 @@ def hello_world():
 @app.route('/notioned', methods = ["GET", "POST"])
 def notioned():
     variables = {}
-    code = res.args.get('code', default = "", type = str)
+    code = rq.args.get('code', default = "", type = str)
     res = MakeRequest(
         "POST",
         "https://api.notion.com/v1/oauth/token",

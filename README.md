@@ -19,20 +19,26 @@ This script automates the process of setting up and organizing module informatio
    cd <repository_directory>
    ```
 
-2. **Install Dependencies**:
+2. **Clone the Notion Template**:
+   Accessible [here](https://bowlyntemplates.notion.site/Uni-Template-77b9720029c64d7ebc078cdde9b7cb14?pvs=4)
+   
+   The program works with this template. DO NOT change the names of the 6 major databases (Objectives, Notes, Assignments and Exams, Assessment Material, Modules, Reading List) or move them. This will not work otherwise.
+
+
+3. **Install Dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Create a `.env` File**:
+4. **Create a `.env` File**:
    Create a `.env` file in the project directory and add the following environment variables:
    ```
-   notiontoken=<your_notion_token>
-   openaiapikey=<your_openai_api_key>
-   moduleurl=<your_notion_module_db_url>
-   assignmenturl=<your_notion_assignment_db_url>
-   assesmenturl=<your_notion_assessment_db_url>
-   objectiveurl=<your_notion_objective_db_url>
+   openaiapikey=<your_openai_key>
+   homepageurl=<url_of _the_duplicated_template>
+   OAUTH_CLIENT_ID=<your_notion_integrations_client_id>
+   OAUTH_CLIENT_SECRET=<your_notion_integrations_client_secret>
+   NOTION_AUTH_URL=<your_notion_integrations_auth_url>
+   FLASK_KEY=<anything_you_want>
    ```
 
 ## Usage
@@ -56,7 +62,6 @@ This script automates the process of setting up and organizing module informatio
 
 - Ensure that your Notion API token and database URLs are correctly configured in the `.env` file.
 - The script assumes a specific HTML structure from the University of Liverpool's website. If the structure changes, you may need to adjust the HTML parsing logic.
-- This script is currently tailored to work with my personal Notion setup and the specific structure of the University of Liverpool's module database. I plan to release a public template and version of this script that will be more generic and configurable, allowing others to adapt it to their own Notion setups. 
 
 ## License
 

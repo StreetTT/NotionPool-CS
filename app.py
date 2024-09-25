@@ -22,7 +22,6 @@ def MakeRequest(method: str, url: str, message: str, data: dict = None, headers=
         print(f"Response Message: {e.response.text}")
         exit(1)
 
-LoadEnvVariables()
 app = Flask(__name__)
 app.config['SECRET_KEY'] =  os.environ.get("FLASK_KEY")
 

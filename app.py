@@ -26,8 +26,8 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] =  os.environ.get("FLASK_KEY")
 
 @app.route('/', methods = ["GET", "POST"])
-    variables = {"url": os.environ.get("NOTION_AUTH_URL")}
 def index():
+    variables = {"url": os.environ.get("NOTION_AUTH_URL")}
     variables.update({"error": True})
     return make_response(render_template("index.html", **variables))
 

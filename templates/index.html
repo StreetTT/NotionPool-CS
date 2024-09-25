@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Home{% endblock %}
 {% block content %}
-<a href="{{ url }}">Add to Notion</a>
-{% if not error %} 
-    <h1> WOO! </h1> 
+    <a href="{{ url }}">Add to Notion</a>
+    {% if not data.get('error', False) %} 
+        <h1> WOO! </h1> 
+    {% endif %}
     <p> {{data}} </p>
-{% endif %}
 {% endblock %}

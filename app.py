@@ -42,7 +42,7 @@ def notioned():
         data={
             "grant_type":"authorization_code",
             "code":code,
-            "redirect_uri":"https%3A%2F%2Fnotionpoolcs.onrender.com%2Fnotioned"
+            "redirect_uri":"https://notionpoolcs.onrender.com/notioned"
         },
         headers={
             "Authorization": f"Basic {os.environ.get('OAUTH_CLIENT_ID')}:{os.environ.get('OAUTH_CLIENT_SECRET')}",

@@ -26,8 +26,9 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] =  os.environ.get("FLASK_KEY")
 
 @app.route('/', methods = ["GET", "POST"])
-def hello_world():
     variables = {"url": os.environ.get("NOTION_AUTH_URL")}
+def index():
+    variables.update({"error": True})
     return make_response(render_template("index.html", **variables))
 
 @app.route('/notioned', methods = ["GET", "POST"])
@@ -37,6 +38,7 @@ def notioned():
     res = MakeRequest(
         "POST",
         "https://api.notion.com/v1/oauth/token",
+        "OAuth2 request",
         data={
             "grant_type":"authorization_code",
             "code":code,

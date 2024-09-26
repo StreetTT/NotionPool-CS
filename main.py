@@ -1,14 +1,16 @@
-import os
+from os import environ
 from sys import exit
 from datetime import datetime
+from dotenv import load_dotenv as LoadEnvVariables
 from bs4 import BeautifulSoup
 import openai
 from utils import MakeRequest, NotionURLToID, get_academic_year
 
 
 # Get Globals
-NOTIONTOKEN = os.environ.get("notiontoken")
-OPENAIAPIKEY = os.environ.get("openaiapikey")
+LoadEnvVariables()
+NOTIONTOKEN = environ.get("notiontoken")
+OPENAIAPIKEY = environ.get("openaiapikey")
 HEADERS = {
     "Authorization": f"Bearer {NOTIONTOKEN}",
     "Notion-Version": "2022-06-28",
@@ -215,8 +217,8 @@ if __name__ == "__main__":
 
             res = MakeRequest(
                 "GET",
-                f"https://api.notion.com/v1/blocks/{NotionURLToID(os.environ.get("homepageurl"))}/children",
-                "Find Relevant Databases'"
+                f"https://api.notion.com/v1/blocks/{NotionURLToID(environ.get("homepageurl"))}/children",
+                "Find Relevant Databases'",
                 headers=HEADERS
             )["results"]
 

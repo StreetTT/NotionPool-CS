@@ -1,14 +1,15 @@
-import os
-import requests
 from flask import Flask, render_template, make_response, request as rq
+from dotenv import load_dotenv as LoadEnvVariables
+from os import environ
 from utils import MakeRequest
 from base64 import b64encode
 from db import NPCS
 
+LoadEnvVariables()
 app = Flask(__name__)
-app.config['SECRET_KEY'] =  os.environ.get("FLASK_KEY")
-client_auth = f"{os.environ.get('OAUTH_CLIENT_ID')}:{os.environ.get('OAUTH_CLIENT_SECRET')}"
 db = NPCS()
+app.config['SECRET_KEY'] =  environ.get("FLASK_KEY")
+client_auth = f"{environ.get('OAUTH_CLIENT_ID')}:{environ.get('OAUTH_CLIENT_SECRET')}"
 client_auth = b64encode(client_auth.encode()).decode()
 
 def addNotionAuth(res):
@@ -32,12 +33,12 @@ def addNotionAuth(res):
 
 @app.route('/', methods = ["GET"])
 def index():
-    variables = {"url": os.environ.get("NOTION_AUTH_URL")}
+    variables = {"url": environ.get("NOTION_AUTH_URL")}
     return make_response(render_template("index.html", **variables))
 
 @app.route('/notioned', methods = ["GET"])
 def notioned():
-    variables = {"url": os.environ.get("NOTION_AUTH_URL")}
+    variables = {"url": environ.get("NOTION_AUTH_URL")}
     code = rq.args.get('code', default = "", type = str)
     res = MakeRequest(
         "POST",

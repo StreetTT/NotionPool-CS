@@ -1,12 +1,15 @@
 from utils import _Database, Entity
-import os
+from dotenv import load_dotenv as LoadEnvVariables
+from os import environ
+LoadEnvVariables()
+
 
 class NPCS(_Database):
     def __init__(self):
         super().__init__(
-            os.environ.get("DB_USERNAME"), 
-            os.environ.get("DB_PASSWORD"), 
-            os.environ.get("DB_NAME")
+            environ.get("DB_USERNAME"), 
+            environ.get("DB_PASSWORD"), 
+            environ.get("DB_NAME")
         )
         self._Tables: dict[str,Entity] = {
                     "Person": Person(self),

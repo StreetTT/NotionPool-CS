@@ -1,6 +1,6 @@
 import os
 from sys import exit
-from datetime import datetime as dt
+from datetime import datetime
 from bs4 import BeautifulSoup
 import openai
 from utils import MakeRequest, NotionURLToID, get_academic_year
@@ -28,6 +28,21 @@ SEMESTERS = {
 
 
 # General Subroutines
+def get_academic_year(date:datetime):
+    # Extract the year and month from the date
+    year = date.year
+    
+    # Determine the academic year
+    if date.month >= 6:  # If the month is June (6) or later
+        start_year = year
+        end_year = year + 1
+    else:  # If the month is earlier than September
+        start_year = year - 1
+        end_year = year
+    
+    # Format the academic year as YYYYYY
+    return f"20{start_year % 100:02d}{end_year % 100:02d}"
+
 def bulletSyllabus(text, chunk_size=2000):
     bullet_text = ""
     client = openai.OpenAI(api_key=OPENAIAPIKEY)
@@ -120,7 +135,7 @@ if __name__ == "__main__":
     for moduleCode in modules:
         # Setting Up the Module Page
         print("---" + moduleCode + "---")
-        acaYear = get_academic_year(dt.now())
+        acaYear = get_academic_year(datetime.now())
         url = f"https://tulip.liv.ac.uk/mods/student/cm_{moduleCode}_{acaYear}.htm"
         res = MakeRequest("GET",url,"Liverpool's Module Page",raw=True, returnError=True)
         if isinstance(res, Exception) or res.status_code != 200:
@@ -202,6 +217,7 @@ if __name__ == "__main__":
                 "GET",
                 f"https://api.notion.com/v1/blocks/{NotionURLToID(os.environ.get("homepageurl"))}/children",
                 "Find Relevant Databases'"
+                headers=HEADERS
             )["results"]
 
             databaseIDS = {}
@@ -227,6 +243,7 @@ if __name__ == "__main__":
                         }
                     },
                 },
+                headers=HEADERS
             )
             
             # Adding stuff to Module page
@@ -253,20 +270,20 @@ if __name__ == "__main__":
                             ]
                             }
                     }]
-                }
+                },
+                headers=HEADERS
             )
 
             res = MakeRequest(
-            # Setup the left column
             "PATCH", f"https://api.notion.com/v1/blocks/{modules[moduleCode]["id"]}/children",
             "Module Information Template - Syllabus",
             data={
                     "children": [{"heading_2": {"rich_text": [{"text": {"content": "Syllabus"}}]}}]
                 + bulletstoNotion(bulletSyllabus(syllabus))
-                }
+                },
+                headers=HEADERS
             )
             res = MakeRequest(
-            # Setup the left column
             "PATCH", f"https://api.notion.com/v1/blocks/{modules[moduleCode]["id"]}/children",
             "Module Information Template - Aims",
             data={
@@ -275,11 +292,11 @@ if __name__ == "__main__":
                     {"paragraph": {"rich_text": [{"text": {"content": chunk}}]}}
                     for chunk in [aims[i : i + 2000] for i in range(0, len(aims), 2000)] if chunk
                 ]
-                }
+                },
+                headers=HEADERS
             )
 
             res = MakeRequest(
-            # Setup the left column
             "PATCH", f"https://api.notion.com/v1/blocks/{modules[moduleCode]["id"]}/children",
             "Module Information Template - Study Hours",
             data={
@@ -314,11 +331,11 @@ if __name__ == "__main__":
                         }
                     },
                 ]
-                }
+                },
+                headers=HEADERS
             )
 
             res = MakeRequest(
-            # Setup the left column
             "PATCH", f"https://api.notion.com/v1/blocks/{modules[moduleCode]["id"]}/children",
             "Module Information Template - Tutorial / Lab Schedule",
             data={
@@ -330,7 +347,8 @@ if __name__ == "__main__":
                             {"paragraph": {"rich_text": [{"text": {"content": "Thursday"}}]}},
                             {"paragraph": {"rich_text": [{"text": {"content": "Friday"}}]}},
                     ]
-                }
+                },
+                headers=HEADERS
             )
             modules[moduleCode] = MakeRequest(
                 # Update Page properties
@@ -346,7 +364,9 @@ if __name__ == "__main__":
                         "Year": {"select": {"name": YEARS[acaYear] + " Year"}},
                         "Semester": {"multi_select" : [{"name": SEMESTERS[semester] + " Semester"} if semester != "Whole Session" else [{"name": sem + " Semester"} for sem in list(SEMESTERS.keys())]]}
                     }
-                })
+                },
+                headers=HEADERS
+            )
             for index, assessment in enumerate(assessments):
                 res = MakeRequest(
                     # Create a new Assignment Page
@@ -362,7 +382,8 @@ if __name__ == "__main__":
                             "Module" : {"relation": [{"id": modules[moduleCode]['id']}]},
                             "Task": {"multi_select" : [{"name": assessment["Type"]}]}
                         }
-                    }
+                    },
+                    headers=HEADERS
                 )
                 MakeRequest(
                     # Create a new Assessment Page
@@ -379,7 +400,8 @@ if __name__ == "__main__":
                             "Linked Assignments" : {"relation": [{"id": res['id']}]},
                             "Weighting": {"number": int(assessment["Weighting"])/100}
                         }
-                    }
+                    },
+                    headers=HEADERS
                 )
             for index, lo in enumerate(los):
                 res = MakeRequest(
@@ -398,5 +420,6 @@ if __name__ == "__main__":
                             "Number": {"number" :  int(lo[-1])}
                             
                         }
-                    }
+                    },
+                    headers=HEADERS
                 )

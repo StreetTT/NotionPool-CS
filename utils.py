@@ -3,6 +3,7 @@ from json import loads
 from datetime import datetime
 import mysql.connector as sql
 from datetime import datetime
+from typing import Union
 
 
 def MakeRequest(method: str, url: str, message: str, data: dict = None, headers={}, raw: bool = False, returnError: bool = False):
@@ -35,6 +36,41 @@ def QueryNotion(url, message, blockQuery=False, query={}):
             query["start_cursor"] = Data["next_cursor"]
     return results
 
+def ListPossibleStartYears(start_year="201617"):
+    # Extract the current year
+    current_year = datetime.now().year
+    
+    # Initialize the start year and list to hold academic years
+    start_year_int = int(start_year[:4])  # Extract the start year as an integer
+    academic_years = []
+    
+    # Generate academic years until the current year
+    while start_year_int < current_year+2:
+        # Construct the next academic year string
+        next_year = start_year_int + 1
+        academic_year = f"{start_year_int}{str(next_year)[-2:]}"
+        academic_years.append(academic_year)
+        
+        # Increment the year
+        start_year_int += 1
+    
+    academic_years.reverse()
+    return academic_years
+
+def GetAcademicYear():
+    now = datetime.now()
+    
+    # Determine the academic year
+    if now.month >= 7:  # If the month is July (7) or later
+        start_year = now.year
+        end_year = now.year + 1
+    else:  # If the month is earlier than September
+        start_year = now.year - 1
+        end_year = now.year
+
+    return f"20{start_year % 100:02d}{end_year % 100:02d}"
+
+
 def NotionURLToID(url: str) -> str:
     # Turns the URL of a Notion page into its ID
     parts = url.split("/")
@@ -57,24 +93,36 @@ class _Database():
         c.execute(f"CREATE DATABASE IF NOT EXISTS {name};")
         conn.close()
         self.__config.update({"database": name})
+        self.conn = None
+        self.cursor = None
 
 
     def _GetName(self):
         return self.__config["database"]
+    
+    def _StartTransaction(self):
+        if (self.conn and self.conn.is_connected() and self.cursor):
+            return
+        self.conn = sql.connect(**self.__config)
+        self.cursor = self.conn.cursor(dictionary=True)
+        self.cursor.execute(f"""START TRANSACTION;""")
+    
+    def _EndTransaction(self):
+        if not (self.conn and self.conn.is_connected() and self.cursor):
+            return
+        print("-" * 20)
+        self.cursor.execute(f"""COMMIT;""")
+        self.conn.close()
 
     # General Subroutines
 
     def _SQLCommand(self, command):  # Connect and perform an SQL Command
+        self._StartTransaction()
         print(f"SQL REQUEST | {command}\nRESPONSE |", end=" ")
-        conn = sql.connect(**self.__config)
-        c = conn.cursor(dictionary=True)
-        c.execute(f"""START TRANSACTION;""")
-        c.execute(f"""{command};""")
-        rows = (c.fetchall())
+        self.cursor.execute(f"""{command};""")
+        rows = (self.cursor.fetchall())
         data = [dict(row) for row in rows]
         print(str(data))
-        c.execute(f"""COMMIT;""")
-        conn.close()
         return data
 
     def _ProtectFromInjection(self, rawValue):
@@ -85,7 +133,7 @@ class _Database():
             value = value + i
         return value
 
-    def get_table(self, name=None) -> "Entity" | dict[str,"Entity"]:
+    def get_table(self, name=None) -> Union["Entity", dict[str, "Entity"]]:
         if name is None:
             return self._Tables
         return self._Tables.get(name, self._Tables)
@@ -112,7 +160,7 @@ class Entity():
         for attribute, value in data.items():
             if value != None:
                 attributes.append(f"`{attribute}`")
-                if type(value) in (int, float):
+                if type(value) in (int, float, bool):
                     values.append(str(value))
                 elif type(value) == datetime:
                     values.append(f"'{str(value)}'")                

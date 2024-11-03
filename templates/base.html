@@ -10,12 +10,19 @@
         <title>{% block title %}{% endblock %} | NPCS</title>
 
         <link rel="icon" href="{{ url_for('static', filename='notionlogo.ico') }}" type="image/x-icon" />
+        <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
     </head>
     <body>
-
-        <main>
-            {% block content %} {% endblock %}
-        </main>
+    <div class="navbar">
+        <a href="/">Home</a>
+        {% if loggedIn %}
+            <a href="/settings">Settings</a>
+        {% endif %}
+    </div>
+    
+    <main>
+        {% block content %} {% endblock %}
+    </main>
 
 
     </body>

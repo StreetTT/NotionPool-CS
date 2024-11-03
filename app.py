@@ -1,9 +1,11 @@
-from flask import Flask, render_template, make_response, request as rq
+from flask import Flask, render_template, make_response, request as rq, redirect
 from dotenv import load_dotenv as LoadEnvVariables
 from os import environ
-from utils import MakeRequest
+from utils import MakeRequest, ListPossibleStartYears
 from base64 import b64encode
 from db import NPCS
+import re
+from main import *
 
 LoadEnvVariables()
 app = Flask(__name__)
@@ -13,10 +15,10 @@ client_auth = f"{environ.get('OAUTH_CLIENT_ID')}:{environ.get('OAUTH_CLIENT_SECR
 client_auth = b64encode(client_auth.encode()).decode()
 
 def addNotionAuth(res):
-    
     db.get_table("Person")._Create({
         "homepage": res["duplicated_template_id"],
-        "person_id": res["owner"]["user"]["id"]
+        "person_id": res["owner"]["user"]["id"],
+        "start_year": GetAcademicYear()
     })
     db.get_table("NotionApp")._Create({
         "access_token": res["access_token"],
@@ -30,15 +32,83 @@ def addNotionAuth(res):
         "workspace_id": res["workspace_id"],
         "bot_id": res["bot_id"]
     })
+    db._EndTransaction()
+
 
 @app.route('/', methods = ["GET"])
 def index():
-    variables = {"url": environ.get("NOTION_AUTH_URL")}
-    return make_response(render_template("index.html", **variables))
+    variables = {"loggedIn": False}
+    # Check if a person is logged in
+    notionID = rq.cookies.get('notionID', "")
+    if not notionID:
+        output = make_response(render_template("index.html", **variables))
+        return output
+    variables["loggedIn"] = True
+    person = db.get_table("Person")._Retrieve({"person_id": notionID})[0]
+    # Get all modules
+    modules = db.get_table("Modules")._Retrieve({"person_id": notionID})
+    variables["modules"] = {}
+    for module in modules:
+       key = AcaYearToText(module["year"], person["start_year"])
+       module_notion_id = module["module_notion_id"].replace("-","") if module["module_notion_id"] else ""
+       variables["modules"].setdefault(key, []).append((module['module_id'], module['pushed'], module_notion_id))
+    output = make_response(render_template("index.html", **variables))
+    db._EndTransaction()
+    return output
+
+@app.route('/settings', methods = ["GET"])
+def settings():
+    variables = {"loggedIn": False}
+    # Check if a person is logged in
+    notionID = rq.cookies.get('notionID', "")
+    if not notionID:
+        output = make_response(render_template("index.html", **variables))
+        return output
+    variables["loggedIn"] = True
+    person = db.get_table("Person")._Retrieve({"person_id": notionID})[0]
+    # Get all possible start years
+    variables["startYears"] = ListPossibleStartYears()
+    variables["currentStartYear"] = person["start_year"]
+    output = make_response(render_template("settings.html", **variables))
+    db._EndTransaction()
+    return output
+
+@app.route('/newcourse', methods = ["POST"])
+def newcourse():
+    notionID = rq.cookies.get('notionID', "")
+    if not notionID:
+        return redirect("/")
+    form = rq.form.to_dict()
+    pushed = 1 if form.get("push", False) else 0
+    db.get_table("Modules")._Create({
+        "module_id": form["code"],
+        "year": GetAcademicYear(),
+        "pushed": pushed,
+        "person_id":notionID
+        
+    })
+    if pushed:
+        ParseModules([form["code"]], db, notionID)
+    db._EndTransaction()
+    return redirect("/")
+
+@app.route('/changehomepage', methods = ["POST"])
+def changehomepage():
+    notionID = rq.cookies.get('notionID', "")
+    if not notionID:
+        return redirect("/")
+    form = rq.form.to_dict()
+    homepage = form.get("homepage", "")
+    notionULRegEx = r"^(https?:\/\/)?(www\.)?notion\.so\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+-[a-f0-9]{32}(\?pvs=\d+)?$"
+    if not re.match(notionULRegEx, homepage):
+        # Invalid Link 
+        return redirect("/settings")
+    db.get_table("Person")._Update({"homepage": homepage}, {"person_id": notionID})
+    db._EndTransaction()
+    return redirect("/")
 
 @app.route('/notioned', methods = ["GET"])
 def notioned():
-    variables = {"url": environ.get("NOTION_AUTH_URL")}
     code = rq.args.get('code', default = "", type = str)
     res = MakeRequest(
         "POST",
@@ -55,10 +125,14 @@ def notioned():
         }
     )
     addNotionAuth(res)
-    return make_response(render_template("index.html", **variables))
+    output = make_response(redirect("/"))
+    output.set_cookie("notionID", res["owner"]["user"]["id"])
+    return output
 
 
 if __name__ == "__main__":
+    # from test import sampleRes
+    # addNotionAuth(sampleRes)
     app.run(
         debug=True
     )

@@ -17,10 +17,12 @@ class NPCS(_Database):
                     "NotionWorkspace": NotionWorkspace(self),
                     "Modules": Modules(self),
                 }
+        self._EndTransaction()
     
 class Person(Entity):
     def __init__(self, database):
         super().__init__(database, """
+        `givenHomepage` VARCHAR(200) NOT NULL,
         `homepage` VARCHAR(200) NOT NULL,
         `objectives` VARCHAR(200),
         `notes` VARCHAR(200),
@@ -28,7 +30,7 @@ class Person(Entity):
         `assessments` VARCHAR(200),
         `modules` VARCHAR(200),
         `reading` VARCHAR(200),
-        `start_year` VARCHAR(6),
+        `start_year` VARCHAR(6) NOT NULL,
         `person_id` VARCHAR(200) NOT NULL,
         PRIMARY KEY (`person_id`)""")
 
@@ -58,9 +60,9 @@ class Modules(Entity):
         super().__init__(database, """
         `module_id` VARCHAR(10) NOT NULL,
         `year` CHAR(6) NOT NULL,
-        `semester` VARCHAR(6) NOT NULL,
         `person_id` VARCHAR(200) NOT NULL,
         `pushed` BOOLEAN NOT NULL,
+        `module_notion_id` VARCHAR(200),
         FOREIGN KEY (`person_id`) REFERENCES `Person`(`person_id`),
         PRIMARY KEY (`module_id`, `person_id`)""")
         

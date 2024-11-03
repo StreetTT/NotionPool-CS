@@ -1,9 +1,38 @@
 {% extends "base.html" %}
 {% block title %}Home{% endblock %}
 {% block content %}
-    <a href="{{ url }}">Add to Notion</a>
-    {% if not data.get('error', False) %} 
-        <h1> WOO! </h1> 
+    {% if not loggedIn %} 
+        <h1> <a href="https://api.notion.com/v1/oauth/authorize?client_id=10bd872b-594c-80e6-b3fc-00378ee93408&response_type=code&owner=user&redirect_uri=https%3A%2F%2Fnotionpoolcs.onrender.com%2Fnotioned">Add to Notion</a> </h1> 
+    {% else %}
+        <div class="row">
+            <div class="column">
+                <h1> Modules </h1>
+                {% if not modules %}
+                    <p>You have no modules, use the pannel across and add some </p>
+                {% else %}
+                    {% for year in modules %}
+                        <h2>{{ year }}</h2>
+                        <ul>
+                            {% for module in modules[year] %}
+                            <li {% if module[1] %} style="color: red;" {% endif %}>{{ module[0] }} <a href="https://www.notion.so/{{ module[2] }}">LINK</a></li>
+                            {% endfor %}
+                        </ul>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <div class="column">
+                <br>
+                <div class="container">
+                    <form method="POST">
+                        <label for="code">Course Code: </label>
+                        <input type="text" id="code" name="code" autocomplete="off" spellcheck="false"><br>
+                        <input type="checkbox" id="push" name="push" value="true">
+                        <label for="push">Auto push to Notion</label><br>
+                        <button type="submit" name="action" formaction="/newcourse">Submit</button>
+                    </form>
+                </div>
+            </div>
+        </div>
     {% endif %}
-    <p> {{data}} </p>
 {% endblock %}

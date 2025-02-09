@@ -1,4 +1,4 @@
-from flask import Flask, render_template, make_response, request as rq, redirect
+from flask import Flask, render_template, make_response, request as rq, redirect, flash
 from dotenv import load_dotenv as LoadEnvVariables
 from os import environ
 from utils import MakeRequest, ListPossibleStartYears
@@ -50,8 +50,13 @@ def index():
     variables["modules"] = {}
     for module in modules:
        key = AcaYearToText(module["year"], person["start_year"])
-       module_notion_id = module["module_notion_id"].replace("-","") if module["module_notion_id"] else ""
-       variables["modules"].setdefault(key, []).append((module['module_id'], module['pushed'], module_notion_id))
+       module_notion_id = (module["module_notion_id"] if module["module_notion_id"] else person['modules']).replace("-","")
+       variables["modules"].setdefault(key, []).append({
+           "moduleID": module['module_id'], 
+           "pushed": module['pushed'], 
+           "moduleNotionID": module_notion_id
+       })
+    print(variables)
     output = make_response(render_template("index.html", **variables))
     db._EndTransaction()
     return output
@@ -89,21 +94,6 @@ def newcourse():
     })
     if pushed:
         ParseModules([form["code"]], db, notionID)
-    db._EndTransaction()
-    return redirect("/")
-
-@app.route('/changehomepage', methods = ["POST"])
-def changehomepage():
-    notionID = rq.cookies.get('notionID', "")
-    if not notionID:
-        return redirect("/")
-    form = rq.form.to_dict()
-    homepage = form.get("homepage", "")
-    notionULRegEx = r"^(https?:\/\/)?(www\.)?notion\.so\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+-[a-f0-9]{32}(\?pvs=\d+)?$"
-    if not re.match(notionULRegEx, homepage):
-        # Invalid Link 
-        return redirect("/settings")
-    db.get_table("Person")._Update({"homepage": homepage}, {"person_id": notionID})
     db._EndTransaction()
     return redirect("/")
 

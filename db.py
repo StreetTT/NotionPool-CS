@@ -22,7 +22,6 @@ class NPCS(_Database):
 class Person(Entity):
     def __init__(self, database):
         super().__init__(database, """
-        `givenHomepage` VARCHAR(200) NOT NULL,
         `homepage` VARCHAR(200) NOT NULL,
         `objectives` VARCHAR(200),
         `notes` VARCHAR(200),

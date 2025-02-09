@@ -6,6 +6,8 @@ from bs4 import BeautifulSoup
 import openai
 from utils import MakeRequest, GetAcademicYear, NotionURLToID
 from base64 import b64encode
+from db import NPCS
+
 
 
 # Get Globals
@@ -17,6 +19,7 @@ SEMESTERS = {
 }
 client_auth = f"{environ.get('OAUTH_CLIENT_ID')}:{environ.get('OAUTH_CLIENT_SECRET')}"
 client_auth = b64encode(client_auth.encode()).decode()
+db = NPCS()
 
 
 # General Subroutines
@@ -109,8 +112,8 @@ def AcaYearToText(acaYear, startYear):
     return f"{year}{suffix} Year"
         
 
-def ParseModules(modules: list, db, personId):
-    for moduleCode in modules:
+def ParseModules(modules, db, personId):
+    for moduleCode in modules: 
         moduleInfo = ScrapeModuleInfo(moduleCode)
         person = db.get_table("Person")._Retrieve({"person_id": personId})[0]
         personsNotion = db.get_table("NotionApp")._Retrieve({"person_id": personId})[0]
@@ -132,6 +135,12 @@ def ParseModules(modules: list, db, personId):
             "pushed": 1,
             "module_notion_id": modulePageId
         },{"person_id": personId, "module_id": moduleCode})
+        db.get_table("Person")._Update({
+            "assessments":person["assessments"], 
+            "assignments":person["assignments"], 
+            "objectives":person["objectives"], 
+            "modules":person["modules"], 
+        },{"person_id": personId})
         
 def CreateNewModulePage(moduleCode, id, title, accessToken):
     res = MakeRequest(

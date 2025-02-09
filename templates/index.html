@@ -8,13 +8,13 @@
             <div class="column">
                 <h1> Modules </h1>
                 {% if not modules %}
-                    <p>You have no modules, use the pannel across and add some </p>
+                    <p>You have no modules, use the panel across and add some </p>
                 {% else %}
                     {% for year in modules %}
                         <h2>{{ year }}</h2>
                         <ul>
                             {% for module in modules[year] %}
-                            <li {% if module[1] %} style="color: red;" {% endif %}>{{ module[0] }} <a href="https://www.notion.so/{{ module[2] }}">LINK</a></li>
+                            <li {% if module['pushed'] %} style="color: red;" {% endif %}>{{ module['moduleID'] }} <a href="https://www.notion.so/{{ module['moduleNotionID'] }}">LINK</a></li>
                             {% endfor %}
                         </ul>
                     {% endfor %}

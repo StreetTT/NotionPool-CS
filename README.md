@@ -33,7 +33,7 @@ This script automates the process of setting up and organizing module informatio
 4. **Create a `.env` File**:
    Create a `.env` file in the project directory and add the following environment variables:
    ```
-   openaiapikey=<your_openai_key>
+   OPENAI_API_KEY=<your_openai_key>
    homepageurl=<url_of _the_duplicated_template>
    OAUTH_CLIENT_ID=<your_notion_integrations_client_id>
    OAUTH_CLIENT_SECRET=<your_notion_integrations_client_secret>

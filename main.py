@@ -22,30 +22,28 @@ client_auth = b64encode(client_auth.encode()).decode()
 # General Subroutines
 def bulletSyllabus(text, chunk_size=2000):
     bullet_text = ""
-    client = openai.OpenAI(api_key=OPENAIAPIKEY)
     with open("prompt.txt", "r") as f:
-        prompt = f.read()
+        prompt = f.read() 
+    logmsg = " | Module Access | openai | Convert syllabus into structured bullet points"
+    
+    client = openai.OpenAI()
     
     # Initialize OpenAI API
-    logmsg = " | Module Access | openai | Convert syllabus into structured bullet points"
     try: 
-        stream = client.chat.completions.create(
-            model="gpt-4",
+        completion  = client.chat.completions.create(
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": text}
-            ],
-            stream=True,
+            ]
         )
         print(f"200" + logmsg)
-    except openai.error.OpenAIError as e: 
+    except openai.APIStatusError as e: 
         print(f"400" + logmsg)
         print(f"Response Message: {e}")
         exit(1)
-    for chunk in stream:
-        if chunk.choices[0].delta.content is not None:
-            bullet_text += chunk.choices[0].delta.content
-    
+    bullet_text = str(completion.choices[0].message.content)
+
     return bullet_text
 
 def bulletstoNotion(text):
@@ -116,7 +114,7 @@ def ParseModules(modules: list, db, personId):
         moduleInfo = ScrapeModuleInfo(moduleCode)
         person = db.get_table("Person")._Retrieve({"person_id": personId})[0]
         personsNotion = db.get_table("NotionApp")._Retrieve({"person_id": personId})[0]
-        person["homepage"] = NotionURLToID(person["homepage"])
+        # person["homepage"] = NotionURLToID(person["homepage"])
         if not person["modules"]:
             person["modules"] = GetPage("Modules", personsNotion["access_token"], person["homepage"])
         modulePageId = CreateNewModulePage(moduleCode, person["modules"], moduleInfo["title"], personsNotion["access_token"])

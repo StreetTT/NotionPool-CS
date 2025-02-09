@@ -65,4 +65,3 @@ class Modules(Entity):
         `module_notion_id` VARCHAR(200),
         FOREIGN KEY (`person_id`) REFERENCES `Person`(`person_id`),
         PRIMARY KEY (`module_id`, `person_id`)""")
-        

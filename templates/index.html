@@ -28,7 +28,7 @@
                                             <a href="https://www.notion.so/{{ module['moduleNotionID'] }}" target="_blank">notion.so</a>
                                         {% else %}
                                             <form method="POST">
-                                                <input type="hidden" name="moduleID" value="{{ module['moduleID'] }}">
+                                                <input type="hidden" name="code" value="{{ module['moduleID'] }}">
                                                 <button type="submit" name="action" formaction="/pushcourse">Push to Notion</button>
                                             </form>
                                         {% endif %}

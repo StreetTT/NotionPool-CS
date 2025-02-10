@@ -105,6 +105,26 @@ def notioned():
     output.set_cookie("notionID", res["owner"]["user"]["id"])
     return output
 
+@app.route('/pushcourse', methods = ["POST"])
+def pushcourse():
+    notionID = rq.cookies.get('notionID', "")
+    if not notionID:
+        return redirect("/")
+    form = rq.form.to_dict()
+    ParseModules([form["code"]], db, notionID)
+    return redirect("/")
+
+@app.route('/changestartyear', methods = ["POST"])
+def changestartyear():
+    notionID = rq.cookies.get('notionID', "")
+    if not notionID:
+        return redirect("/")
+    form = rq.form.to_dict()
+    db.get_table("Person")._Update({
+            "start_year":form["startYear"]
+        },{"person_id": notionID})
+    return redirect("/")
+
 
 if __name__ == "__main__":
     # from test import sampleRes

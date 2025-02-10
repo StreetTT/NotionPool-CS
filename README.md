@@ -22,7 +22,7 @@ This script automates the process of setting up and organizing module informatio
 2. **Clone the Notion Template**:
    Accessible [here](https://bowlyntemplates.notion.site/Uni-Template-77b9720029c64d7ebc078cdde9b7cb14?pvs=4)
    
-   The program works with this template. DO NOT change the names of the 6 major databases (Objectives, Notes, Assignments and Exams, Assessment Material, Modules, Reading List) or move them. This will not work otherwise.
+   The program works with this template. DO NOT change the names of the 6 major databases (Objectives, Notes, Assignments and Exams, Assessment Material, Modules, Reading List) or move them. This WILL NOT work otherwise.
 
 
 3. **Install Dependencies**:
@@ -34,7 +34,6 @@ This script automates the process of setting up and organizing module informatio
    Create a `.env` file in the project directory and add the following environment variables:
    ```
    OPENAI_API_KEY=<your_openai_key>
-   homepageurl=<url_of _the_duplicated_template>
    OAUTH_CLIENT_ID=<your_notion_integrations_client_id>
    OAUTH_CLIENT_SECRET=<your_notion_integrations_client_secret>
    NOTION_AUTH_URL=<your_notion_integrations_auth_url>
@@ -50,7 +49,7 @@ This script automates the process of setting up and organizing module informatio
    ```
 
 2. **Input Module Codes**:
-   Enter module codes one by one. Type `X` when done.
+   Enter module codes without the "COMP" prefix.
 
 3. **Script Execution**:
    The script will:

@@ -1,56 +1,155 @@
-body {margin:0;}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+
+body {
+    margin: 0;
+    background-color: #2e2e2e;
+    color: #e0e0e0;
+    font-family: 'Inter', sans-serif;
+}
 
 .navbar {
-  overflow: hidden;
-  background-color: #333;
-  position: fixed;
-  top: 0;
-  width: 100%;
-  z-index: 1;
+    overflow: hidden;
+    background-color: #1f1f1f;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1;
 }
 
 .navbar a {
-  float: left;
-  display: block;
-  color: #f2f2f2;
-  text-align: center;
-  padding: 14px 16px;
-  text-decoration: none;
-  font-size: 17px;
+    float: left;
+    display: block;
+    color: #e0e0e0;
+    text-align: center;
+    padding: 14px 16px;
+    text-decoration: none;
+    font-size: 17px;
 }
 
 .navbar a:hover {
-  background: #ddd;
-  color: black;
+    background: #575757;
+    color: white;
+}
+
+.navbar a.selected {
+  background: #575757;
+  color: white;
+}
+
+.navbar h1 {
+  float: right;
+  color: #e0e0e0;
+  font-weight: bold;
+  margin: 0;
+  padding: 8px 16px;
+  font-size: 24px;
 }
 
 main {
-  padding: 16px;
-  margin-top: 30px;
+    padding: 16px;
+    margin-top: 30px;
 }
 
 * {
     box-sizing: border-box;
-  }
-  
-  /* Create two equal columns that floats next to each other */
-  .column {
+}
+
+/* Create two equal columns that float next to each other */
+.column {
     float: left;
     width: 50%;
     padding: 10px;
-    height: 300px; /* Should be removed. Only for demonstration */
-  }
-  
-  /* Clear floats after the columns */
-  .row:after {
+    height: 300px;
+}
+
+/* Clear floats after the columns */
+.row:after {
     content: "";
     display: table;
     clear: both;
-  }
+}
 
-  .container {
+.container {
     position: relative;
     border-radius: 5px;
-    background-color: #f2f2f2;
+    background-color: #3e3e3e;
     padding: 20px 10px 30px 10px;
-  } 
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 18px;
+    text-align: left;
+    background-color: #3e3e3e;
+    color: #e0e0e0;
+}
+
+table th, table td {
+    padding: 12px 15px;
+    border: 1px solid #575757;
+}
+
+table th {
+    background-color: #4e4e4e;
+    color: #e0e0e0;
+}
+
+table tr:nth-child(even) {
+    background-color: #4e4e4e;
+}
+
+button {
+    background-color: #444444; /* Dark gray */
+    border: none;
+    color: #e0e0e0; /* Light gray */
+    padding: 10px 20px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #575757; /* Slightly lighter gray */
+}
+
+button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+form {
+    margin: 10px 0;
+}
+
+input[type="text"], select {
+    width: 100%;
+    padding: 12px 20px;
+    margin: 8px 0;
+    display: inline-block;
+    border: 1px solid #575757;
+    border-radius: 4px;
+    box-sizing: border-box;
+    background-color: #3e3e3e;
+    color: #e0e0e0;
+}
+
+input[type="checkbox"] {
+    margin-top: 10px;
+}
+
+a {
+    color: #61dafb; /* Light blue */
+    text-decoration: none;
+}
+
+a:hover {
+    color: #21a1f1; /* Slightly darker blue */
+    text-decoration: underline;
+}

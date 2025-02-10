@@ -45,36 +45,22 @@ def index():
         return output
     variables["loggedIn"] = True
     person = db.get_table("Person")._Retrieve({"person_id": notionID})[0]
+    variables["startYears"] = ListPossibleStartYears()
+    variables["currentStartYear"] = person["start_year"]
     # Get all modules
     modules = db.get_table("Modules")._Retrieve({"person_id": notionID})
     variables["modules"] = {}
     for module in modules:
        key = AcaYearToText(module["year"], person["start_year"])
-       module_notion_id = (module["module_notion_id"] if module["module_notion_id"] else person['modules']).replace("-","")
        variables["modules"].setdefault(key, []).append({
            "moduleID": module['module_id'], 
            "pushed": module['pushed'], 
-           "moduleNotionID": module_notion_id
+           "moduleNotionID": (module["module_notion_id"] if module["module_notion_id"] else person['modules']).replace("-","")
+
        })
+    variables["homepage"] = person['homepage'].replace("-","")
     print(variables)
     output = make_response(render_template("index.html", **variables))
-    db._EndTransaction()
-    return output
-
-@app.route('/settings', methods = ["GET"])
-def settings():
-    variables = {"loggedIn": False}
-    # Check if a person is logged in
-    notionID = rq.cookies.get('notionID', "")
-    if not notionID:
-        output = make_response(render_template("index.html", **variables))
-        return output
-    variables["loggedIn"] = True
-    person = db.get_table("Person")._Retrieve({"person_id": notionID})[0]
-    # Get all possible start years
-    variables["startYears"] = ListPossibleStartYears()
-    variables["currentStartYear"] = person["start_year"]
-    output = make_response(render_template("settings.html", **variables))
     db._EndTransaction()
     return output
 

@@ -3,8 +3,8 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta property="og:title" content="Template" />
-        <meta property="og:description" content="Dumb Description" />
+        <meta property="og:title" content="NotionPool-CS" />
+        <meta property="og:description" content="Application to setup a Notion Template with information from the UoL:TULIP database about UOL CS courses" />
         <meta property="og:image" content="{{ url_for('static', filename='notionlogo.png') }}" />
 
         <title>{% block title %}{% endblock %} | NPCS</title>
@@ -14,10 +14,9 @@
     </head>
     <body>
     <div class="navbar">
-        <a href="/">Home</a>
-        {% if loggedIn %}
-            <a href="/settings">Settings</a>
-        {% endif %}
+        <a href="https://www.notion.so/{{ homepage }}">Homepage</a>
+        <a class="selected" href="/">Settings</a>
+        <h1>NotionPool - CS</h1>
     </div>
     
     <main>

@@ -45,6 +45,17 @@
                 <br>
                 <div class="container">
                     <form method="POST">
+                        <label for="code">Course Code: </label>
+                        <input type="text" id="code" name="code" autocomplete="off" spellcheck="false"><br>
+                        <input type="checkbox" id="push" name="push" value="true">
+                        <label for="push">Auto push to Notion</label><br>
+                        <button type="submit" name="action" formaction="/newcourse">Submit</button>
+                    </form>
+                </div>
+
+                <br>
+                <div class="container">
+                    <form method="POST">
                         <label for="startYear">Starting Year: </label>
                         <select id="startYear" name="startYear" value="{{currentStartYear}}">
                             {% for startYear in startYears %}
@@ -52,17 +63,6 @@
                             {% endfor %}
                         </select>
                         <button type="submit" name="action" formaction="/changestartyear">Submit</button>
-                    </form>
-                </div>
-                <br>
-                
-                <div class="container">
-                    <form method="POST">
-                        <label for="code">Course Code: </label>
-                        <input type="text" id="code" name="code" autocomplete="off" spellcheck="false"><br>
-                        <input type="checkbox" id="push" name="push" value="true">
-                        <label for="push">Auto push to Notion</label><br>
-                        <button type="submit" name="action" formaction="/newcourse">Submit</button>
                     </form>
                 </div>
             </div>

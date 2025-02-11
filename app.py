@@ -51,13 +51,14 @@ def index():
     modules = db.get_table("Modules")._Retrieve({"person_id": notionID})
     variables["modules"] = {}
     for module in modules:
-       key = AcaYearToText(module["year"], person["start_year"])
-       variables["modules"].setdefault(key, []).append({
-           "moduleID": module['module_id'], 
-           "pushed": module['pushed'], 
-           "moduleNotionID": (module["module_notion_id"] if module["module_notion_id"] else person['modules']).replace("-","")
-
-       })
+        key = AcaYearToText(module["year"], person["start_year"])
+        module_data = {
+            "moduleID": module['module_id'],
+            "pushed": module['pushed'],
+            "moduleNotionID": module['module_notion_id'].replace("-", "") if module["module_notion_id"] else ""
+        }
+        variables["modules"].setdefault(key, []).append(module_data)
+        
     variables["homepage"] = person['homepage'].replace("-","")
     print(variables)
     output = make_response(render_template("index.html", **variables))

@@ -193,20 +193,47 @@ def PopulateModulePage(modulePageId, syllabus, aims, studyTimes, url, teacher, t
             "Content-Type": "application/json",
         }
     )
-
-    MakeRequest( # Write up Syllabus
-    "PATCH", f"https://api.notion.com/v1/blocks/{modulePageId}/children",
-    "Module Information Template - Syllabus",
-    data={
-            "children": [{"heading_2": {"rich_text": [{"text": {"content": "Syllabus"}}]}}]
-        + bulletstoNotion(bulletSyllabus(syllabus))
-        },
-        headers={
-            "Authorization": f"Bearer {accessToken}",
-            "Notion-Version": "2022-06-28",
-            "Content-Type": "application/json",
-        }
-    )
+    
+    # Write up Syllabus, 5 attempts before putting the plain syllabus
+    max_retries = 5
+    attempt = 0
+    while attempt < max_retries:
+        response = MakeRequest(
+            "PATCH", f"https://api.notion.com/v1/blocks/{modulePageId}/children",
+            f"Module Information Template - Syllabus [Attempt {str(attempt + 1)}]",
+            data={
+                "children": [{"heading_2": {"rich_text": [{"text": {"content": "Syllabus"}}]}}]
+                + bulletstoNotion(bulletSyllabus(syllabus))
+            },
+            headers={
+                "Authorization": f"Bearer {accessToken}",
+                "Notion-Version": "2022-06-28",
+                "Content-Type": "application/json",
+            }, returnError=True
+        )
+        if isinstance(response, Exception) or response.status_code != 200:
+            attempt += 1
+            print(f"Attempt {attempt} failed with status code 400. Retrying...")
+        else:
+            break
+    
+    if attempt == max_retries:
+        response = MakeRequest(
+            "PATCH", f"https://api.notion.com/v1/blocks/{modulePageId}/children",
+            "Module Information Template - Syllabus [PLAIN]",
+            data={
+                "children": [{"heading_2": {"rich_text": [{"text": {"content": "Syllabus"}}]}}]
+                    + [
+                        {"paragraph": {"rich_text": [{"text": {"content": chunk}}]}}
+                        for chunk in [syllabus[i : i + 2000] for i in range(0, len(syllabus), 2000)] if chunk
+                    ]
+            },
+            headers={
+                "Authorization": f"Bearer {accessToken}",
+                "Notion-Version": "2022-06-28",
+                "Content-Type": "application/json",
+            }, returnError=True
+        )
     
     MakeRequest( # Write up Aims 
     "PATCH", f"https://api.notion.com/v1/blocks/{modulePageId}/children",

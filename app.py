@@ -1,16 +1,17 @@
-from flask import Flask, render_template, make_response, request as rq, redirect, flash
+from flask import Flask, render_template, make_response, request as rq, redirect
 from dotenv import load_dotenv as LoadEnvVariables
 from os import environ
 from utils import MakeRequest, ListPossibleStartYears
 from base64 import b64encode
 from db import NPCS
-import re
 from main import *
+from threading import Thread
 
 LoadEnvVariables()
 app = Flask(__name__)
 db = NPCS()
 app.config['SECRET_KEY'] =  environ.get("FLASK_KEY")
+socketio.init_app(app)
 client_auth = f"{environ.get('OAUTH_CLIENT_ID')}:{environ.get('OAUTH_CLIENT_SECRET')}"
 client_auth = b64encode(client_auth.encode()).decode()
 
@@ -55,7 +56,7 @@ def index():
         module_data = {
             "moduleID": module['module_id'],
             "pushed": module['pushed'],
-            "moduleNotionID": module['module_notion_id'].replace("-", "") if module["module_notion_id"] else ""
+            "moduleNotionID": module['module_notion_id'].replace("-", "") if module["module_notion_id"] else None
         }
         variables["modules"].setdefault(key, []).append(module_data)
         
@@ -80,7 +81,11 @@ def newcourse():
         
     })
     if pushed:
-        ParseModules([form["code"]], db, notionID)
+        Thread(
+            target=ParseModules,
+            args=([form["code"]], db, notionID),
+            daemon=True
+        ).start()
     db._EndTransaction()
     return redirect("/")
 
@@ -112,7 +117,11 @@ def pushcourse():
     if not notionID:
         return redirect("/")
     form = rq.form.to_dict()
-    ParseModules([form["code"]], db, notionID)
+    Thread(
+        target=ParseModules,
+        args=([form["code"]], db, notionID),
+        daemon=True
+    ).start()
     return redirect("/")
 
 @app.route('/changestartyear', methods = ["POST"])
@@ -130,6 +139,7 @@ def changestartyear():
 if __name__ == "__main__":
     # from test import sampleRes
     # addNotionAuth(sampleRes)
-    app.run(
+    socketio.run(
+        app=app,
         debug=True
     )

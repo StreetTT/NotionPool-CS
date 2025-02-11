@@ -21,7 +21,7 @@ def MakeRequest(method: str, url: str, message: str, data: dict = None, headers=
             return e
         print(f"URL: {e.response.url}")
         print(f"Response Message: {e.response.text}")
-        exit(1)
+        return False
 
 def QueryNotion(url, message, blockQuery=False, query={}):
     # Integrates Pagenation to collet all objects from notion

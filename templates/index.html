@@ -24,12 +24,14 @@
                                 <tr>
                                     <td>{{ module['moduleID'] }}</td>
                                     <td>
-                                        {% if module['pushed'] %}
+                                        {% if module['moduleNotionID'] != None %}
                                             <a href="https://www.notion.so/{{ module['moduleNotionID'] }}" target="_blank">notion.so</a>
-                                        {% else %}
-                                            <form method="POST">
+                                        {% endif %}
+                                        {% if module['moduleNotionID'] != None and not module['pushed'] %} <br> {% endif %}
+                                        {% if not module['pushed'] %}
+                                            <form method="POST" id="pushCourseForm" data-code="{{ module['moduleID'] }}">
                                                 <input type="hidden" name="code" value="{{ module['moduleID'] }}">
-                                                <button type="submit" name="action" formaction="/pushcourse">Push to Notion</button>
+                                                <button type="submit" name="action">Push to Notion</button>
                                             </form>
                                         {% endif %}
                                     </td>

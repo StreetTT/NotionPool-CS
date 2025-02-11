@@ -45,6 +45,49 @@ body {
   font-size: 24px;
 }
 
+.notification {
+  padding: 15px;
+  margin: 10px 0;
+  border-radius: 5px;
+  position: relative;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  opacity: 1;
+  transition: opacity 1s ease-out
+}
+
+.notification.fade-out {
+  opacity: 0;
+  max-height: 0;
+}
+
+.notification.info {
+  background-color: #2196F3; /* Blue */
+}
+
+.notification.success {
+  background-color: #4CAF50; /* Green */
+}
+
+.notification.warning {
+  background-color: #FF9800; /* Orange */
+}
+
+.notification.error {
+  background-color: #F44336; /* Red */
+}
+
+.notification .close-btn {
+  position: absolute;
+  top: 0;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+}
+
 main {
     padding: 16px;
     margin-top: 30px;

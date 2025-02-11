@@ -11,6 +11,7 @@
 
         <link rel="icon" href="{{ url_for('static', filename='notionlogo.ico') }}" type="image/x-icon" />
         <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+        <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+" crossorigin="anonymous"></script>
     </head>
     <body>
     <div class="navbar">
@@ -20,22 +21,12 @@
     </div>
     
     <main>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="container mt-4">
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                                <span aria-hidden="true">&times;</span>
-                            </button>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
+        <div id="notifications"></div>  
         {% block content %} {% endblock %}
     </main>
 
     </body>
+    <footer>
+        <script src="{{ url_for('static', filename='script.js') }}"></script> 
+    </footer>
 </html>

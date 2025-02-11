@@ -1,14 +1,12 @@
 from os import environ
 from sys import exit
-from datetime import datetime
 from dotenv import load_dotenv as LoadEnvVariables
 from bs4 import BeautifulSoup
 import openai
 from utils import MakeRequest, GetAcademicYear, NotionURLToID
 from base64 import b64encode
 from db import NPCS
-
-
+from sockets import socketio
 
 # Get Globals
 LoadEnvVariables()
@@ -114,23 +112,85 @@ def AcaYearToText(acaYear, startYear):
 
 def ParseModules(modules, db, personId):
     for moduleCode in modules: 
+        # Scrape Information off of TULIP
         moduleInfo = ScrapeModuleInfo(moduleCode)
+        if moduleInfo == False:
+            socketio.emit("status_update", {
+                "message": f"COMP{moduleCode} information not found",
+                "type": "error"
+            })
+            continue
         person = db.get_table("Person")._Retrieve({"person_id": personId})[0]
         personsNotion = db.get_table("NotionApp")._Retrieve({"person_id": personId})[0]
-        # person["homepage"] = NotionURLToID(person["homepage"])
+        
+        # Create Module Page
         if not person["modules"]:
             person["modules"] = GetPage("Modules", personsNotion["access_token"], person["homepage"])
         modulePageId = CreateNewModulePage(moduleCode, person["modules"], moduleInfo["title"], personsNotion["access_token"])
+        if not modulePageId:
+            socketio.emit("status_update", {
+                "message": f"COMP{moduleCode} Notion Page unable to be created",
+                "type": "error"
+            })
+            continue
+        socketio.emit("status_update", {
+                "message": f"COMP{moduleCode} Notion Page Created",
+                "type": "success"
+            })
+        socketio.emit("injectsModulePageNotionID", {
+                "modulePageId": modulePageId.replace("-",""),
+                "code": moduleCode
+            })
+        db.get_table("Modules")._Update({
+            "module_notion_id": modulePageId
+        },{"person_id": personId, "module_id": moduleCode})
+        
+        # Populate Module Page
         db.get_table("Modules")._Update({"module_notion_id":modulePageId},{"person_id": personId, "module_id": moduleCode})
-        PopulateModulePage(modulePageId, moduleInfo["syllabus"], moduleInfo["aims"], moduleInfo['studyTimes'], moduleInfo['url'], moduleInfo['teacher'], moduleInfo['teacherEmail'], moduleInfo['semester'], moduleInfo['credits'], person["start_year"], personsNotion["access_token"])
+        res = PopulateModulePage(modulePageId, moduleInfo["syllabus"], moduleInfo["aims"], moduleInfo['studyTimes'], moduleInfo['url'], moduleInfo['teacher'], moduleInfo['teacherEmail'], moduleInfo['semester'], moduleInfo['credits'], person["start_year"], personsNotion["access_token"])
+        if not res:
+            socketio.emit("status_update", {
+                "message": f"COMP{moduleCode} Notion page unable to be fully populated",
+                "type": "error"
+            })
+            continue
+        socketio.emit("status_update", {
+                "message": f"COMP{moduleCode} Notion Page Fully Populated",
+                "type": "success"
+            })
+        
+        # Create Assessment + Assignment Pages
         if not person["assessments"]:
             person["assessments"] = GetPage('Assessment Material', personsNotion["access_token"], person["homepage"])
         if not person["assignments"]:
             person["assignments"] = GetPage('Assignments and Exams', personsNotion["access_token"], person["homepage"])
         CreateAssessment_AssignmentsPage(modulePageId, person["assignments"], person["assessments"], moduleInfo["assessments"], personsNotion["access_token"])
+        if not res:
+            socketio.emit("status_update", {
+                "message": f"COMP{moduleCode} Assignments unable to be created",
+                "type": "error"
+            })
+            continue
+        socketio.emit("status_update", {
+                "message": f"COMP{moduleCode} Assignments Created",
+                "type": "success"
+            })
+        
+        # Create Objectives Pages
         if not person["objectives"]:
             person["objectives"] = GetPage('Objectives', personsNotion["access_token"], person["homepage"])
         CreateLoPage(modulePageId, person["objectives"], moduleInfo["los"], personsNotion["access_token"])
+        if not res:
+            socketio.emit("status_update", {
+                "message": f"COMP{moduleCode} Objectives unable to be created",
+                "type": "error"
+            })
+            continue
+        socketio.emit("status_update", {
+                "message": f"COMP{moduleCode} Objectives Created",
+                "type": "success"
+            })
+        
         db.get_table("Modules")._Update({
             "pushed": 1,
             "module_notion_id": modulePageId
@@ -141,6 +201,11 @@ def ParseModules(modules, db, personId):
             "objectives":person["objectives"], 
             "modules":person["modules"], 
         },{"person_id": personId})
+        socketio.emit("status_update_IMP", {
+                "message": f"COMP{moduleCode} Fully Pushed to Notion",
+                "type": "success"
+            })
+        
         
 def CreateNewModulePage(moduleCode, id, title, accessToken):
     res = MakeRequest(
@@ -161,10 +226,10 @@ def CreateNewModulePage(moduleCode, id, title, accessToken):
             "Content-Type": "application/json",
         }
     )
-    return res["id"]
+    return res["id"] if res else res
 
 def PopulateModulePage(modulePageId, syllabus, aims, studyTimes, url, teacher, teacherEmail, semester, credits, startYear, accessToken):
-    MakeRequest( # Setup the Module Information sub-page
+    res = MakeRequest( # Setup the Module Information sub-page
         "PATCH", f"https://api.notion.com/v1/blocks/{modulePageId}/children",
         "Module Information Template",
         data={
@@ -193,6 +258,9 @@ def PopulateModulePage(modulePageId, syllabus, aims, studyTimes, url, teacher, t
             "Content-Type": "application/json",
         }
     )
+
+    if not res:
+        return False
     
     # Write up Syllabus, 5 attempts before putting the plain syllabus
     max_retries = 5
@@ -211,7 +279,7 @@ def PopulateModulePage(modulePageId, syllabus, aims, studyTimes, url, teacher, t
                 "Content-Type": "application/json",
             }, returnError=True
         )
-        if isinstance(response, Exception) or response.status_code != 200:
+        if not response or not isinstance(response, dict):
             attempt += 1
             print(f"Attempt {attempt} failed with status code 400. Retrying...")
         else:
@@ -234,8 +302,10 @@ def PopulateModulePage(modulePageId, syllabus, aims, studyTimes, url, teacher, t
                 "Content-Type": "application/json",
             }, returnError=True
         )
-    
-    MakeRequest( # Write up Aims 
+    if not response:
+        return False
+
+    response = MakeRequest( # Write up Aims 
     "PATCH", f"https://api.notion.com/v1/blocks/{modulePageId}/children",
     "Module Information Template - Aims",
     data={
@@ -251,8 +321,10 @@ def PopulateModulePage(modulePageId, syllabus, aims, studyTimes, url, teacher, t
             "Content-Type": "application/json",
         }
     )
+    if not response:
+        return False
 
-    MakeRequest( # Create Study Hours Table
+    response = MakeRequest( # Create Study Hours Table
     "PATCH", f"https://api.notion.com/v1/blocks/{modulePageId}/children",
     "Module Information Template - Study Hours",
     data={
@@ -294,8 +366,10 @@ def PopulateModulePage(modulePageId, syllabus, aims, studyTimes, url, teacher, t
             "Content-Type": "application/json",
         }
     )
+    if not response:
+        return False
     
-    MakeRequest( # Create Lab Schedule
+    response = MakeRequest( # Create Lab Schedule
     "PATCH", f"https://api.notion.com/v1/blocks/{modulePageId}/children",
     "Module Information Template - Tutorial / Lab Schedule",
     data={
@@ -314,8 +388,10 @@ def PopulateModulePage(modulePageId, syllabus, aims, studyTimes, url, teacher, t
             "Content-Type": "application/json",
         }
     )
+    if not response:
+        return False
 
-    MakeRequest( # Update Page properties
+    response = MakeRequest( # Update Page properties
         "PATCH",
         f"https://api.notion.com/v1/pages/{modulePageId}",
         "Module Page properties",
@@ -335,6 +411,9 @@ def PopulateModulePage(modulePageId, syllabus, aims, studyTimes, url, teacher, t
             "Content-Type": "application/json",
         }
     )
+    if not response:
+        return False
+    return True
 
 def CreateAssessment_AssignmentsPage(modulePageId, AssignmentsPageID, AssessmentsPageID, assessments, accessToken):
     for index, assessment in enumerate(assessments):
@@ -359,7 +438,9 @@ def CreateAssessment_AssignmentsPage(modulePageId, AssignmentsPageID, Assessment
                 "Content-Type": "application/json",
             }
         )
-        MakeRequest(
+        if not res:
+            return False
+        res = MakeRequest(
             # Create a new Assessment Page
             "POST",
             f"https://api.notion.com/v1/pages",
@@ -381,10 +462,12 @@ def CreateAssessment_AssignmentsPage(modulePageId, AssignmentsPageID, Assessment
                 "Content-Type": "application/json",
             }
         )
+        if not res:
+            return False
 
 def CreateLoPage(modulePageId, ObjectivesPageID, los, accessToken):
     for index, lo in enumerate(los):
-        MakeRequest(
+        res = MakeRequest(
             # Create a new Objective Page
             "POST",
             f"https://api.notion.com/v1/pages",
@@ -407,6 +490,8 @@ def CreateLoPage(modulePageId, ObjectivesPageID, los, accessToken):
             "Content-Type": "application/json",
         }
         )
+        if not res:
+            return False
 
 def GetPage(type:str, accessToken, homepageID):
     res = MakeRequest(
@@ -436,8 +521,7 @@ def ScrapeModuleInfo(moduleCode: str):
     data["url"] = f"https://tulip.liv.ac.uk/mods/student/cm_{moduleCode}_{data["acaYear"]}.htm"
     res = MakeRequest("GET", data["url"], "Liverpool's Module Page", raw=True, returnError=True)
     if isinstance(res, Exception) or res.status_code != 200:
-        print("Module Page not found: " + moduleCode)
-        return
+        return 0
     soup = BeautifulSoup(res.content, 'html.parser')
     tables = soup.find_all('table', align='center')
 
